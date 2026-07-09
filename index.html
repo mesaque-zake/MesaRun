@@ -29,16 +29,61 @@
     <!-- CSS Personalizado -->
     <link rel="stylesheet" href="css/style.css">
 
-    <!-- Engines gráficas do jogo (carregamento local para evitar falhas de CDN) -->
-    <script src="assets/vendor/pixi.min.js"></script>
-    <script src="assets/vendor/pixi3d.js"></script>
+    <!-- Engines gráficas do jogo (carregamento local com fallback para CDN) -->
     <script>
-        window.addEventListener("DOMContentLoaded", () => {
-            if (typeof PIXI === "undefined" || typeof PIXI3D === "undefined") {
-                console.error("[Boot] PIXI ou PIXI3D não foram carregados corretamente.");
-                document.body.insertAdjacentHTML("beforeend", '<div style="position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:#020617; color:#fff; font-family:Arial,sans-serif; z-index:9999;">Falha ao carregar o motor gráfico do MesaRun.</div>');
+        (function () {
+            const pixiCandidates = [
+                "./assets/vendor/pixi.min.js",
+                "assets/vendor/pixi.min.js",
+                "./MesaRun-main/assets/vendor/pixi.min.js",
+                "../MesaRun-main/assets/vendor/pixi.min.js",
+                "https://cdn.jsdelivr.net/npm/pixi.js@7.4.2/dist/pixi.min.js"
+            ];
+            const pixi3dCandidates = [
+                "./assets/vendor/pixi3d.js",
+                "assets/vendor/pixi3d.js",
+                "./MesaRun-main/assets/vendor/pixi3d.js",
+                "../MesaRun-main/assets/vendor/pixi3d.js",
+                "https://cdn.jsdelivr.net/npm/pixi3d@2.5.0/dist/browser/pixi3d.js"
+            ];
+
+            function loadScript(src, onLoad, onError) {
+                const script = document.createElement("script");
+                script.src = src;
+                script.async = false;
+                script.onload = onLoad;
+                script.onerror = onError;
+                document.head.appendChild(script);
             }
-        });
+
+            function tryLoadSequence(list, index, onSuccess, onError) {
+                if (index >= list.length) {
+                    onError();
+                    return;
+                }
+
+                const src = list[index];
+                loadScript(src, () => onSuccess(src), () => {
+                    console.warn(`[Boot] Falha ao carregar: ${src}`);
+                    tryLoadSequence(list, index + 1, onSuccess, onError);
+                });
+            }
+
+            window.addEventListener("DOMContentLoaded", () => {
+                tryLoadSequence(pixiCandidates, 0, () => {
+                    tryLoadSequence(pixi3dCandidates, 0, () => {
+                        if (typeof PIXI === "undefined" || typeof PIXI3D === "undefined") {
+                            console.error("[Boot] PIXI ou PIXI3D não foram carregados corretamente.");
+                            document.body.insertAdjacentHTML("beforeend", '<div style="position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:#020617; color:#fff; font-family:Arial,sans-serif; z-index:9999;">Falha ao carregar o motor gráfico do MesaRun.</div>');
+                        }
+                    }, () => {
+                        console.error("[Boot] Não foi possível carregar Pixi3D.");
+                    });
+                }, () => {
+                    console.error("[Boot] Não foi possível carregar PixiJS.");
+                });
+            });
+        })();
     </script>
 
     <!-- Ícones Lucide -->
