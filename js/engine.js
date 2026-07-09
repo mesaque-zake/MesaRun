@@ -18,49 +18,50 @@ const engine = {
      * Inicializa o canvas do jogo e a projeção de câmera.
      */
     init() {
-    if (this.isInitialized) return true;
+        if (this.isInitialized) return true;
 
-    if (typeof PIXI === "undefined" || typeof PIXI3D === "undefined") {
-        console.error("[Engine] Falha ao inicializar: PIXI ou PIXI3D não foram carregados.");
-        return false;
-    }
+        if (typeof PIXI === "undefined" || typeof PIXI3D === "undefined") {
+            console.error("[Engine] Falha ao inicializar: PIXI ou PIXI3D não foram carregados.");
+            return false;
+        }
 
-    const holder = document.getElementById("canvas-holder");
-    if (!holder) {
-        console.error("[Engine] Erro: Elemento 'canvas-holder' não encontrado no HTML.");
-        return false;
-    }
+        const holder = document.getElementById("canvas-holder");
+        if (!holder) {
+            console.error("[Engine] Erro: Elemento 'canvas-holder' não encontrado no HTML.");
+            return false;
+        }
 
-    // 1. Inicializa a aplicação PixiJS v7
-    this.app = new PIXI.Application({
-        width: GAME_WIDTH,
-        height: GAME_HEIGHT,
-        antialias: true,
-        resolution: window.devicePixelRatio || 1,
-        autoDensity: true,
-        backgroundColor: 0x0f172a,
-    });
+        // 1. Inicializa a aplicação PixiJS v7
+        this.app = new PIXI.Application({
+            width: GAME_WIDTH,
+            height: GAME_HEIGHT,
+            antialias: true,
+            resolution: window.devicePixelRatio || 1,
+            autoDensity: true,
+            backgroundColor: 0x0f172a, // Cor Slate-900 (fundo escuro de carregamento)
+        });
 
-    // Insere o canvas gerado pelo PixiJS na div HTML reservada
-    holder.appendChild(this.app.view);
+        // Insere o canvas gerado pelo PixiJS na div HTML reservada
+        holder.appendChild(this.app.view);
 
-    // 2. Cria a camada 3D principal (Pixi3D)
-    this.scene3D = this.app.stage;
+        // 2. Cria a camada 3D principal (Pixi3D)
+        // No Pixi3D, adicionamos objetos 3D diretamente ao palco principal do PixiJS
+        this.scene3D = this.app.stage;
 
-    // 3. Configura a Câmera Isométrica (Ortográfica)
-    this.setupCamera();
+        // 3. Configura a Câmera Isométrica (Ortográfica)
+        this.setupCamera();
 
-    // 4. Configura as Luzes e Sombras para dar volume aos modelos 3D
-    this.setupLighting();
+        // 4. Configura as Luzes e Sombras para dar volume aos modelos 3D
+        this.setupLighting();
 
-    // 5. Configura a redimensionalização responsiva
-    this.setupResize();
-    this.resize();
+        // 5. Configura a redimensionalização responsiva
+        this.setupResize();
+        this.resize();
 
-    this.isInitialized = true;
-    console.log("[Engine] PixiJS e Pixi3D inicializados com sucesso.");
-    return true;
-},
+        this.isInitialized = true;
+        console.log("[Engine] PixiJS e Pixi3D inicializados com sucesso.");
+        return true;
+    },
 
     /**
      * Configura a câmera isométrica ortográfica.
@@ -117,6 +118,8 @@ const engine = {
      * Ajusta o canvas do PixiJS para manter a proporção correta de 9:16 sem distorcer.
      */
     resize() {
+        if (!this.app || !this.app.renderer) return;
+
         const holder = document.getElementById("canvas-holder");
         if (!holder) return;
 
