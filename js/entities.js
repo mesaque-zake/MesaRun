@@ -32,14 +32,22 @@ const entities = {
         'assets/models/cars/taxi.glb'
     ],
 
-    // Caminhos de Assets de Alimentos (Imagens PNG)
+    // Caminhos Reais de Alimentos Saudáveis (Imagens PNG)
     foodSprites: [
         'assets/sprites/food/apple.png',
-        'assets/sprites/food/milk.png'
+        'assets/sprites/food/banana.png',
+        'assets/sprites/food/beet.png',
+        'assets/sprites/food/broccoli.png',
+        'assets/sprites/food/cabbage.png'
     ],
+
+    // Caminhos Reais de Alimentos Não Saudáveis / Negativos (Imagens PNG)
     negativeFoodSprites: [
-        'assets/sprites/negativefood/rotten_apple.png',
-        'assets/sprites/negativefood/spoiled_milk.png'
+        'assets/sprites/negativefood/advocado-half.png',
+        'assets/sprites/negativefood/apple-half.png',
+        'assets/sprites/negativefood/burger-cheese.png',
+        'assets/sprites/negativefood/burger.png',
+        'assets/sprites/negativefood/cake.png'
     ],
 
     textures: {},             // Armazenamento de texturas carregadas para alimentos
