@@ -1,7 +1,7 @@
 /**
  * js/entities.js
  * Gerenciamento do Jogador (Caminhão Sesc), Tráfego de Obstáculos e Itens Colecionáveis.
- * Controla movimentação, inércia, spawn dinâmico e colisões.
+ * Controla movimentação, inércia, spawn dinâmico e colisões com assets reais mapeados.
  */
 
 const entities = {
@@ -18,14 +18,18 @@ const entities = {
     },
 
     // 2. Controle de Spawners e Listas de Entidades
-    activeObstacles: [],      // Carros e motos inimigos na pista
-    activeItems: [],          // Alimentos 2D colecionáveis na pista
+    activeObstacles: [],      // Carros inimigos ativos na pista
+    activeItems: [],          // Alimentos 2D colecionáveis ativos na pista
     spawnTimer: 0,            // Temporizador geral de spawn
     spawnInterval: 90,        // Intervalo base de spawn (em frames)
 
-    // Caminhos de Assets de Obstáculos (Modelos 3D GLB)
+    // Caminhos Reais dos Obstáculos (Modelos 3D GLB do Kenney)
     obstacleModels: [
-        'assets/models/cars/car.glb' // Modelo genérico de carro do Kenney
+        'assets/models/cars/police.glb',
+        'assets/models/cars/sedan.glb',
+        'assets/models/cars/suv-luxury.glb',
+        'assets/models/cars/suv.glb',
+        'assets/models/cars/taxi.glb'
     ],
 
     // Caminhos de Assets de Alimentos (Imagens PNG)
@@ -47,8 +51,8 @@ const entities = {
     async init() {
         console.log("[Entities] Carregando assets das entidades...");
 
-        // 1. Carrega a paleta de cores geral do Kenney
-        this.carColormap = await PIXI.Assets.load('assets/models/car_colormap.png');
+        // 1. Carrega a paleta de cores real do Kenney para veículos
+        this.carColormap = await PIXI.Assets.load('assets/models/cars/Textures/colormap.png');
 
         // 2. Carrega o Caminhão Sesc (delivery.glb)
         const truckGltf = await PIXI.Assets.load('assets/models/mycar/delivery.glb');
@@ -64,12 +68,20 @@ const entities = {
         // 3. Carrega as texturas PNG dos alimentos 2D (Colecionáveis)
         this.textures.goodFood = [];
         for (let path of this.foodSprites) {
-            this.textures.goodFood.push(await PIXI.Assets.load(path));
+            try {
+                this.textures.goodFood.push(await PIXI.Assets.load(path));
+            } catch (e) {
+                console.warn(`[Entities] Falha ao carregar o alimento: ${path}`);
+            }
         }
 
         this.textures.badFood = [];
         for (let path of this.negativeFoodSprites) {
-            this.textures.badFood.push(await PIXI.Assets.load(path));
+            try {
+                this.textures.badFood.push(await PIXI.Assets.load(path));
+            } catch (e) {
+                console.warn(`[Entities] Falha ao carregar o alimento negativo: ${path}`);
+            }
         }
 
         this.reset();
@@ -105,7 +117,7 @@ const entities = {
     },
 
     /**
-     * Aplica a paleta de cores padrão do Kenney nos modelos 3D.
+     * Aplica a paleta de cores padrão do Kenney nos modelos 3D de veículos.
      */
     applyCarColormap(model) {
         model.meshes.forEach(mesh => {
@@ -154,7 +166,6 @@ const entities = {
         this.player.model.position.x = this.player.currentX;
 
         // 2. Calcula o Body Roll (Efeito de inclinação da carroceria)
-        // A inclinação é proporcional à velocidade do movimento horizontal (diffX)
         const targetRoll = -diffX * 12; // Multiplicador de intensidade de inclinação
         this.player.rollAmount += (targetRoll - this.player.rollAmount) * 0.15 * deltaTime;
 
@@ -179,7 +190,6 @@ const entities = {
             const spawnType = Math.random();
 
             if (spawnType < 0.65) {
-                // Sorteia se o alimento será saudável (80%) ou estragado (20%)
                 const isGood = Math.random() < 0.8;
                 this.spawnFoodItem(spawnX, isGood);
             } else {
@@ -191,7 +201,7 @@ const entities = {
     /**
      * Instancia um alimento 2D na pista flutuando no ar.
      */
-    async spawnFoodItem(xPos, isGood) {
+    spawnFoodItem(xPos, isGood) {
         const pool = isGood ? this.textures.goodFood : this.textures.badFood;
         if (pool.length === 0) return;
 
@@ -210,7 +220,7 @@ const entities = {
             xPos: xPos,
             zPos: 25.0,
             isGood: isGood,
-            hoverTimer: Math.random() * 10 // Defasagem inicial do temporizador de flutuação
+            hoverTimer: Math.random() * 10
         });
     },
 
@@ -292,9 +302,8 @@ const entities = {
         const pX = this.player.model.position.x;
         const pZ = this.player.model.position.z;
 
-        // Dimensões da Caixa de Colisão do Caminhão Sesc (Tolerâncias)
-        const colWidth = 0.45;  // Margem lateral
-        const colDepth = 0.65;  // Margem de profundidade
+        const colWidth = 0.45;  // Margem lateral de colisão
+        const colDepth = 0.65;  // Margem de profundidade de colisão
 
         // 1. Verifica Colisão com Veículos de Tráfego (Gera Game Over)
         for (let obs of this.activeObstacles) {
@@ -302,9 +311,8 @@ const entities = {
             const dz = Math.abs(pZ - obs.model.position.z);
 
             if (dx < colWidth && dz < colDepth) {
-                // Colisão fatal detectada! Dispara evento global de Game Over
                 main.triggerGameOver();
-                return; // Encerra loop imediatamente
+                return;
             }
         }
 
@@ -318,7 +326,6 @@ const entities = {
                 // Item coletado com sucesso!
                 main.collectItem(item.isGood);
 
-                // Remove o item coletado do palco e da lista ativa
                 engine.scene3D.removeChild(item.sprite);
                 this.activeItems.splice(i, 1);
             }
