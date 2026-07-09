@@ -131,16 +131,34 @@ const main = {
     /**
      * Transiciona da tela de login para a tela de gameplay ativa.
      */
-    // 1. Inicializa o motor gráfico (caso ainda não tenha sido iniciado)
-const engineReady = engine.init();
-if (!engineReady) {
-    console.error("[Main] O motor gráfico não pôde ser inicializado.");
-    return;
-}
+    async startGame() {
+        console.log(`[Main] Rota iniciada por: ${this.selectedPlayerName}`);
 
-// 2. Inicializa os assets de cenário e entidades
-await world.init();
-await entities.init();
+        // Oculta a tela de seleção e exibe o HUD do jogo
+        document.getElementById("screen-login").classList.add("hidden");
+        document.getElementById("hud").classList.remove("hidden");
+        
+        // Atualiza as informações do jogador no painel superior
+        document.getElementById("hud-player-name").innerText = this.selectedPlayerName;
+        this.updateHUDScore(0);
+
+        // 1. Inicializa o motor gráfico (caso ainda não tenha sido iniciado)
+        const engineReady = engine.init();
+        if (!engineReady) {
+            console.error("[Main] O motor gráfico não pôde ser inicializado.");
+            return;
+        }
+
+        // 2. Inicializa os assets de cenário e entidades
+        await world.init();
+        await entities.init();
+
+        // 3. Adiciona o loop de renderização contínuo do PixiJS (Ticker)
+        engine.app.ticker.add(this.tick, this);
+
+        this.score = 0;
+        this.isGameActive = true;
+    },
 
     /**
      * O Loop Principal do Jogo executado a cada quadro (aproximadamente 60 FPS).
