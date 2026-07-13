@@ -80,6 +80,10 @@ function startGameSequence() {
             // AQUI É ONDE O JOGO REALMENTE VAI COMEÇAR NA ETAPA 2
             console.log("Sinal Verde! Os caminhões estão na pista!");
             
+            // 1. Cria a Rua e o Caminhão
+            createWorld(scene);
+            createEntities(scene);
+            
         }, 500); // Aguarda o meio segundo do Fade Out do Tailwind
         
     }, 4500); // Mantém a frase final na tela por 1.5s
@@ -87,6 +91,7 @@ function startGameSequence() {
 
 function gameLoop() {
     requestAnimationFrame(gameLoop);
+    updateWorld();
     renderEngine();
 }
 
