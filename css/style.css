@@ -1,50 +1,12 @@
-/* Impedir rolagem e interações indesejadas no navegador (essencial para mobile/PWAs) */
-html, body {
+/* Configuração global para usar a fonte escolhida */
+body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
     margin: 0;
     padding: 0;
-    overflow: hidden;
-    touch-action: none;
-    -webkit-tap-highlight-color: transparent;
 }
 
-/* Forçar o canvas do PixiJS a preencher o espaço reservado e renderizar de forma nítida */
+/* Removemos bordas de seleção no mobile */
 canvas {
     display: block;
-    width: 100% !important;
-    height: 100% !important;
-    image-rendering: auto;
-}
-
-/* Estilo do container principal para garantir proporção 9:16 vertical */
-#game-container {
-    box-sizing: border-box;
-}
-
-/* Transições suaves globais para as telas de interface */
-#screen-login, #screen-gameover {
-    transition: opacity 0.4s ease, visibility 0.4s ease;
-}
-
-/* Efeito Pulsante para Elementos do HUD */
-@keyframes pulse-slow {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
-}
-
-.pulse-effect {
-    animation: pulse-slow 2s infinite ease-in-out;
-}
-
-/* Estilos customizados para barra de rolagem do seletor (se aplicável) */
-select::-webkit-scrollbar {
-    width: 6px;
-}
-
-select::-webkit-scrollbar-track {
-    background: #0f172a;
-}
-
-select::-webkit-scrollbar-thumb {
-    background: #334155;
-    border-radius: 3px;
+    outline: none;
 }
