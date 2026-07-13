@@ -1,141 +1,76 @@
-/**
- * js/engine.js
- * Motor Gráfico do MesaRun! (PixiJS v7 + Pixi3D)
- * Configura o Canvas, a câmera ortográfica isométrica e o sistema de luzes.
- */
+import * as THREE from 'three';
 
-// Configurações Globais de Proporção do Jogo (Estilo Subway Surfers / Crossy Road)
-const GAME_WIDTH = 450;
-const GAME_HEIGHT = 800;
+// Exportando variáveis para que outros arquivos possam usar
+export let scene, camera, renderer;
 
-const engine = {
-    app: null,          // Instância do PixiJS Application
-    scene3D: null,      // Camada 3D principal (Pixi3D Stage)
-    light: null,        // Luz direcional principal
-    isInitialized: false,
+export function initEngine() {
+    const container = document.getElementById('game-container');
 
-    /**
-     * Inicializa o canvas do jogo e a projeção de câmera.
-     */
-    init() {
-        if (this.isInitialized) return true;
+    // 1. Criar a Cena e definir a cor do céu
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB); // Azul Céu
 
-        if (typeof PIXI === "undefined" || typeof PIXI3D === "undefined") {
-            console.error("[Engine] Falha ao inicializar: PIXI ou PIXI3D não foram carregados.");
-            return false;
-        }
+    // 2. Configurar a Câmera Ortográfica (Visão Isométrica estilo Crossy Road)
+    const aspect = window.innerWidth / window.innerHeight;
+    const frustumSize = 30; // Controla o "zoom" do jogo
+    
+    camera = new THREE.OrthographicCamera(
+        (frustumSize * aspect) / -2,
+        (frustumSize * aspect) / 2,
+        frustumSize / 2,
+        frustumSize / -2,
+        1,
+        1000
+    );
+    
+    // Posicionando a câmera no alto, olhando de lado para o centro
+    camera.position.set(20, 20, 20);
+    camera.lookAt(0, 0, 0);
 
-        const holder = document.getElementById("canvas-holder");
-        if (!holder) {
-            console.error("[Engine] Erro: Elemento 'canvas-holder' não encontrado no HTML.");
-            return false;
-        }
+    // 3. Configurar o Renderizador Gráfico
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true; // Ligando o sistema de sombras
+    container.appendChild(renderer.domElement);
 
-        // 1. Inicializa a aplicação PixiJS v7
-        this.app = new PIXI.Application({
-            width: GAME_WIDTH,
-            height: GAME_HEIGHT,
-            antialias: true,
-            resolution: window.devicePixelRatio || 1,
-            autoDensity: true,
-            backgroundColor: 0x0f172a, // Cor Slate-900 (fundo escuro de carregamento)
-        });
+    // 4. Configurar a Iluminação
+    // Luz ambiente para clarear os modelos de forma geral
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
 
-        // Insere o canvas gerado pelo PixiJS na div HTML reservada
-        holder.appendChild(this.app.view);
+    // Luz direcional simulando o Sol (Gera as sombras)
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(10, 20, 10);
+    dirLight.castShadow = true;
+    
+    // Área que a sombra do Sol vai abranger
+    dirLight.shadow.camera.left = -20;
+    dirLight.shadow.camera.right = 20;
+    dirLight.shadow.camera.top = 20;
+    dirLight.shadow.camera.bottom = -20;
+    scene.add(dirLight);
 
-        // 2. Cria a camada 3D principal (Pixi3D)
-        // No Pixi3D, adicionamos objetos 3D diretamente ao palco principal do PixiJS
-        this.scene3D = this.app.stage;
+    // Listener para ajustar o jogo se a pessoa girar o celular ou redimensionar a tela
+    window.addEventListener('resize', onWindowResize, false);
+}
 
-        // 3. Configura a Câmera Isométrica (Ortográfica)
-        this.setupCamera();
+// Função para corrigir a tela caso seja redimensionada
+function onWindowResize() {
+    const aspect = window.innerWidth / window.innerHeight;
+    const frustumSize = 30;
+    
+    camera.left = (frustumSize * aspect) / -2;
+    camera.right = (frustumSize * aspect) / 2;
+    camera.top = frustumSize / 2;
+    camera.bottom = frustumSize / -2;
+    camera.updateProjectionMatrix();
+    
+    renderer.setSize(window.innerWidth, window.innerHeight);
+}
 
-        // 4. Configura as Luzes e Sombras para dar volume aos modelos 3D
-        this.setupLighting();
-
-        // 5. Configura a redimensionalização responsiva
-        this.setupResize();
-        this.resize();
-
-        this.isInitialized = true;
-        console.log("[Engine] PixiJS e Pixi3D inicializados com sucesso.");
-        return true;
-    },
-
-    /**
-     * Configura a câmera isométrica ortográfica.
-     * Alinha a rotação exatamente no ângulo do losango 2:1.
-     */
-    setupCamera() {
-        // Ativa o modo de projeção ortográfica (remove distorção de distância)
-        PIXI3D.Camera.main.orthographic = true;
-
-        // Controla o "zoom" da câmera. Quanto menor o número, mais próximos ficam os objetos.
-        PIXI3D.Camera.main.orthographicSize = 6.5;
-
-        // Posiciona a câmera flutuando no ar para olhar o cenário de cima
-        PIXI3D.Camera.main.position.set(-8, 9, -8);
-
-        // Define a rotação exata da Projeção Isométrica:
-        // Rotação Y (Horizontal/Yaw): 45 graus (Math.PI / 4)
-        // Rotação X (Vertical/Inclinação/Pitch): 30 graus (aprox. 0.523 radianos)
-        // Rotação Z (Roll): 0 graus
-        PIXI3D.Camera.main.rotationQuaternion.setEulerAngles(30, 45, 0);
-    },
-
-    /**
-     * Configura o ambiente de iluminação para destacar as cores e relevos.
-     */
-    setupLighting() {
-        // Criamos uma Luz Direcional (como a luz solar, para projetar sombras e destacar arestas)
-        this.light = new PIXI3D.Light();
-        this.light.type = PIXI3D.LightType.directional;
-        this.light.intensity = 1.4;
-        
-        // Posiciona a fonte de luz e a inclina para diagonal oposta da câmera
-        this.light.position.set(5, 12, 5);
-        this.light.rotationQuaternion.setEulerAngles(55, -45, 0);
-
-        // Adiciona a luz ao ambiente global de renderização 3D
-        PIXI3D.LightingEnvironment.main.lights.push(this.light);
-
-        // Adiciona uma luz de ambiente sutil para preencher áreas de sombra (evita que fiquem pretas)
-        const ambientLight = new PIXI3D.Light();
-        ambientLight.type = PIXI3D.LightType.ambient;
-        ambientLight.intensity = 0.45;
-        PIXI3D.LightingEnvironment.main.lights.push(ambientLight);
-    },
-
-    /**
-     * Configura o ouvinte de redimensionamento de janela.
-     */
-    setupResize() {
-        window.addEventListener("resize", () => this.resize());
-    },
-
-    /**
-     * Ajusta o canvas do PixiJS para manter a proporção correta de 9:16 sem distorcer.
-     */
-    resize() {
-        if (!this.app || !this.app.renderer) return;
-
-        const holder = document.getElementById("canvas-holder");
-        if (!holder) return;
-
-        const container = document.getElementById("game-container");
-        if (!container) return;
-
-        const width = container.clientWidth;
-        const height = container.clientHeight;
-
-        // Ajusta as dimensões lógicas do PixiJS
-        this.app.renderer.resize(width, height);
-
-        // Atualiza a escala de renderização interna da câmera para evitar achatamento
-        PIXI3D.Camera.main.aspect = width / height;
-
-        // Mantém a escala ortográfica proporcional para que o tamanho dos elementos se ajuste à tela
-        PIXI3D.Camera.main.orthographicSize = 6.5 * (GAME_HEIGHT / height);
+// Função responsável por "tirar a foto" frame a frame
+export function render() {
+    if (renderer && scene && camera) {
+        renderer.render(scene, camera);
     }
-};
+}
