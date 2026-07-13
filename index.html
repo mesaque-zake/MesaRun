@@ -8,8 +8,8 @@
     <!-- Tailwind CSS (via CDN para o Front-end 0800) -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Fonte Plus Jakarta Sans -->
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <!-- Fontes do Google -->
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     
     <!-- Import Map para o motor Three.js -->
@@ -24,13 +24,58 @@
 </head>
 <body class="bg-gray-900 text-white overflow-hidden touch-none">
     
-    <!-- Camada de Interface (UI) - Vai ficar por cima do jogo 3D -->
-    <div id="ui-layer" class="absolute inset-0 pointer-events-none z-10 flex flex-col items-center justify-center">
-        <h1 id="loading-text" class="text-3xl font-extrabold text-yellow-400 drop-shadow-lg tracking-wider animate-pulse">
-            LIGANDO O MOTOR 3D...
-        </h1>
-    </div>
+    <!-- Interface (Menus e Pontuação - Fica por cima do jogo) -->
+    <div id="ui-layer" class="absolute inset-0 z-10">
+        
+        <!-- Camada de Fundo com Blur para o Menu -->
+        <div id="menu-backdrop" class="absolute inset-0 bg-black/40 backdrop-blur-md flex flex-col items-center justify-center transition-opacity duration-500 z-20">
+            
+            <!-- Logo e Botões Principais -->
+            <div id="main-menu" class="flex flex-col items-center gap-6">
+                <!-- Título MesaRun! usando a fonte Bangers -->
+                <h1 class="font-[Bangers] text-7xl md:text-8xl text-white tracking-widest drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] mb-2">MesaRun!</h1>
+                
+                <button id="btn-play" class="bg-green-500 hover:bg-green-400 text-white font-[Bangers] text-5xl tracking-wide py-3 px-16 rounded-2xl shadow-[0_6px_0_#166534] active:shadow-[0_0px_0_#166534] active:translate-y-[6px] transition-all">
+                    PLAY
+                </button>
+                
+                <button id="btn-ranking" class="bg-slate-700 hover:bg-slate-600 text-white font-bold text-xl py-3 px-8 rounded-xl shadow-[0_4px_0_#334155] active:shadow-[0_0px_0_#334155] active:translate-y-[4px] transition-all mt-4">
+                    🏆 TOP 10 RANKING
+                </button>
+            </div>
 
+            <!-- Modal do Ranking (Vidro Fosco - Escondido por padrão) -->
+            <div id="ranking-modal" class="hidden flex-col items-center w-11/12 max-w-md bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-2xl">
+                <h2 class="font-[Bangers] text-5xl text-white tracking-wide mb-6">🏆 TOP 10</h2>
+                
+                <ul class="w-full text-white font-medium space-y-4 mb-8">
+                    <!-- Textos placeholders (depois o GAS vai preencher isso) -->
+                    <li class="flex justify-between border-b border-white/20 pb-2"><span>1. João (Motorista)</span><span class="text-green-400 font-bold">1500 kg</span></li>
+                    <li class="flex justify-between border-b border-white/20 pb-2"><span>2. Maria (Assistente)</span><span class="text-green-400 font-bold">1200 kg</span></li>
+                    <li class="flex justify-between border-b border-white/20 pb-2 text-white/50 italic"><span>Aguardando banco de dados...</span><span></span></li>
+                </ul>
+                
+                <button id="btn-close-ranking" class="bg-red-500 hover:bg-red-400 text-white font-bold py-3 px-10 rounded-xl shadow-[0_4px_0_#7f1d1d] active:shadow-[0_0px_0_#7f1d1d] active:translate-y-[4px] transition-all">
+                    VOLTAR
+                </button>
+            </div>
+
+            <!-- Seu Rodapé -->
+            <div id="footer" class="absolute bottom-8 flex flex-col items-center gap-2">
+                <img src="logo.png" alt="Logo Sesc" class="h-10 object-contain drop-shadow-md">
+                <div id="signature" class="w-full text-center pointer-events-none">
+                    <p class="text-xs md:text-sm font-medium text-slate-300">
+                        Powered with <span class="text-[#e80523] text-sm md:text-base leading-none drop-shadow-md">&#10084;</span> by <strong class="text-white drop-shadow-md">Mesaque</strong>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tela de Contagem Regressiva (Escondida por padrão) -->
+        <div id="countdown-layer" class="hidden absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+            <h1 id="countdown-text" class="font-[Bangers] text-9xl text-white drop-shadow-[0_5px_15px_rgba(0,0,0,0.8)] text-center leading-tight">3</h1>
+        </div>
+    </div>
     <!-- O Container onde o Three.js vai injetar o nosso Canvas -->
     <div id="game-container" class="absolute inset-0 z-0"></div>
 
