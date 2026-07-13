@@ -1,4 +1,7 @@
 import { initEngine, renderEngine } from './engine.js';
+import { initEngine, renderEngine, scene } from './engine.js';
+import { createWorld, updateWorld } from './world.js';
+import { createEntities } from './entities.js';
 
 // Elementos da Interface (UI)
 const menuBackdrop = document.getElementById('menu-backdrop');
