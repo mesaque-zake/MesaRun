@@ -1,0 +1,27 @@
+/* Configuração global para usar a fonte escolhida */
+body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+/* Removemos bordas de seleção no mobile */
+canvas {
+    display: block;
+    outline: none;
+}
+/* Força todo o esqueleto do jogo a travar dentro do quadrado do wrapper */
+#game-wrapper {
+    max-width: 100vh !important;
+    width: 100% !important;
+}
+
+#game-container {
+    max-width: 100% !important;
+    max-height: 100% !important;
+}
+
+#game-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
