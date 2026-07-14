@@ -22,64 +22,139 @@
         }
     </script>
 </head>
-<body class="bg-gray-900 text-white overflow-hidden touch-none">
+<body class="bg-gray-900 text-white overflow-hidden touch-none flex items-center justify-center min-h-screen">
     
-    <!-- Interface (Menus e Pontuação - Fica por cima do jogo) -->
-    <div id="ui-layer" class="absolute inset-0 z-10">
+    <!-- Wrapper principal para limitar o aspecto em telas largas (aspecto max 1:1) [1] -->
+    <div id="game-wrapper" class="w-full max-w-[100vh] h-screen relative overflow-hidden bg-gray-950 shadow-2xl">
         
-        <!-- Camada de Fundo com Blur para o Menu -->
-        <div id="menu-backdrop" class="absolute inset-0 bg-black/40 backdrop-blur-md flex flex-col items-center justify-center transition-opacity duration-500 z-20">
-            
-            <!-- Logo e Botões Principais -->
-            <div id="main-menu" class="flex flex-col items-center gap-6">
-                <!-- Título MesaRun! usando a fonte Bangers -->
-                <h1 class="font-[Bangers] text-7xl md:text-8xl text-white tracking-widest drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] mb-2">MesaRun!</h1>
+        <!-- Interface (Menus e Pontuação - Fica por cima do jogo) -->
+        <div id="ui-layer" class="absolute inset-0 z-10">
+        
+            <!-- Camada de Fundo com Blur para o Menu -->
+            <div id="menu-backdrop" class="absolute inset-0 bg-black/40 backdrop-blur-md flex flex-col items-center justify-center transition-opacity duration-500 z-20">
                 
-                <button id="btn-play" class="bg-green-500 hover:bg-green-400 text-white font-[Bangers] text-5xl tracking-wide py-3 px-16 rounded-2xl shadow-[0_6px_0_#166534] active:shadow-[0_0px_0_#166534] active:translate-y-[6px] transition-all">
-                    PLAY
-                </button>
-                
-                <button id="btn-ranking" class="bg-slate-700 hover:bg-slate-600 text-white font-bold text-xl py-3 px-8 rounded-xl shadow-[0_4px_0_#334155] active:shadow-[0_0px_0_#334155] active:translate-y-[4px] transition-all mt-4">
-                    🏆 TOP 10 RANKING
-                </button>
-            </div>
+                <!-- Logo e Botões Principais -->
+                <div id="main-menu" class="flex flex-col items-center gap-4 md:gap-6">
+                    <!-- Logo Sesc (Reposicionado acima do título e maior) -->
+                    <img src="logo.png" alt="Logo Sesc" class="h-16 md:h-20 object-contain drop-shadow-md mb-2">
 
-            <!-- Modal do Ranking (Vidro Fosco - Escondido por padrão) -->
-            <div id="ranking-modal" class="hidden flex-col items-center w-11/12 max-w-md bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-2xl">
-                <h2 class="font-[Bangers] text-5xl text-white tracking-wide mb-6">🏆 TOP 10</h2>
-                
-                <ul class="w-full text-white font-medium space-y-4 mb-8">
-                    <!-- Textos placeholders (depois o GAS vai preencher isso) -->
-                    <li class="flex justify-between border-b border-white/20 pb-2"><span>1. João (Motorista)</span><span class="text-green-400 font-bold">1500 kg</span></li>
-                    <li class="flex justify-between border-b border-white/20 pb-2"><span>2. Maria (Assistente)</span><span class="text-green-400 font-bold">1200 kg</span></li>
-                    <li class="flex justify-between border-b border-white/20 pb-2 text-white/50 italic"><span>Aguardando banco de dados...</span><span></span></li>
-                </ul>
-                
-                <button id="btn-close-ranking" class="bg-red-500 hover:bg-red-400 text-white font-bold py-3 px-10 rounded-xl shadow-[0_4px_0_#7f1d1d] active:shadow-[0_0px_0_#7f1d1d] active:translate-y-[4px] transition-all">
-                    VOLTAR
-                </button>
-            </div>
+                    <!-- Título MesaRun! usando a fonte Bangers -->
+                    <h1 class="font-[Bangers] text-7xl md:text-8xl text-white tracking-widest drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] mb-2">MesaRun!</h1>
+                    
+                    <button id="btn-play" class="bg-green-500 hover:bg-green-400 text-white font-[Bangers] text-5xl tracking-wide py-3 px-16 rounded-2xl shadow-[0_6px_0_#166534] active:shadow-[0_0px_0_#166534] active:translate-y-[6px] transition-all">
+                        PLAY
+                    </button>
+                    
+                    <button id="btn-ranking" class="bg-slate-700 hover:bg-slate-600 text-white font-bold text-xl py-3 px-8 rounded-xl shadow-[0_4px_0_#334155] active:shadow-[0_0px_0_#334155] active:translate-y-[4px] transition-all mt-4">
+                        🏆 TOP 10 RANKING
+                    </button>
+                </div>
 
-            <!-- Seu Rodapé -->
-            <div id="footer" class="absolute bottom-8 flex flex-col items-center gap-2">
-                <img src="logo.png" alt="Logo Sesc" class="h-10 object-contain drop-shadow-md">
-                <div id="signature" class="w-full text-center pointer-events-none">
-                    <p class="text-xs md:text-sm font-medium text-slate-300">
-                        Powered with <span class="text-[#e80523] text-sm md:text-base leading-none drop-shadow-md">&#10084;</span> by <strong class="text-white drop-shadow-md">Mesaque</strong>
-                    </p>
+                <!-- Modal do Ranking (Vidro Fosco - Escondido por padrão) -->
+                <div id="ranking-modal" class="hidden flex-col items-center w-11/12 max-w-md bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-2xl">
+                    <h2 class="font-[Bangers] text-5xl text-white tracking-wide mb-6">🏆 TOP 10</h2>
+                    
+                    <!-- Lista do Ranking (Dinamizada via LocalStorage) [1] -->
+                    <ul id="ranking-list" class="w-full text-white font-medium space-y-3 mb-8 max-h-60 overflow-y-auto pr-1">
+                        <!-- Será preenchida dinamicamente pelo JavaScript -->
+                    </ul>
+                    
+                    <button id="btn-close-ranking" class="bg-red-500 hover:bg-red-400 text-white font-bold py-3 px-10 rounded-xl shadow-[0_4px_0_#7f1d1d] active:shadow-[0_0px_0_#7f1d1d] active:translate-y-[4px] transition-all">
+                        VOLTAR
+                    </button>
+                </div>
+
+                <!-- Seu Rodapé (Assinatura estritamente fixada e centralizada no rodapé da moldura) [1] -->
+                <div id="footer" class="absolute bottom-6 left-0 right-0 flex flex-col items-center pointer-events-none">
+                    <div id="signature" class="w-full text-center">
+                        <p class="text-xs md:text-sm font-medium text-slate-300">
+                            Powered with <span class="text-[#e80523] text-sm md:text-base leading-none drop-shadow-md">&#10084;</span> by <strong class="text-white drop-shadow-md">Mesaque</strong>
+                        </p>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Tela de Contagem Regressiva (Escondida por padrão) -->
-        <div id="countdown-layer" class="hidden absolute inset-0 flex items-center justify-center pointer-events-none z-30">
-            <h1 id="countdown-text" class="font-[Bangers] text-9xl text-white drop-shadow-[0_5px_15px_rgba(0,0,0,0.8)] text-center leading-tight">3</h1>
-        </div>
-    </div>
-    <!-- O Container onde o Three.js vai injetar o nosso Canvas -->
-    <div id="game-container" class="absolute inset-0 z-0"></div>
+            <!-- Tela de Contagem Regressiva (Escondida por padrão) -->
+            <div id="countdown-layer" class="hidden absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+                <h1 id="countdown-text" class="font-[Bangers] text-9xl text-white drop-shadow-[0_5px_15px_rgba(0,0,0,0.8)] text-center leading-tight">3</h1>
+            </div>
 
-    <!-- Script Principal (como module para suportar imports) -->
+            <!-- HUD de Corrida (Ícones de Freio) - Movido para o canto inferior direito -->
+            <div id="hud-layer" class="hidden absolute bottom-6 right-6 flex gap-3 z-30">
+                <img id="brake-icon-1" src="assets/sprite/road/freio.png" alt="Freio 1" class="w-11 h-11 object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)] transition-all duration-300">
+                <img id="brake-icon-2" src="assets/sprite/road/freio.png" alt="Freio 2" class="w-11 h-11 object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)] transition-all duration-300">
+                <img id="brake-icon-3" src="assets/sprite/road/freio.png" alt="Freio 3" class="w-11 h-11 object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)] transition-all duration-300">
+            </div>
+
+                <!-- Velocímetro HUD (Canto Superior Esquerdo - Esmeralda e Branco) -->
+             <div id="speedometer-layer" class="hidden absolute top-6 left-6 bg-emerald-700 rounded-2xl py-2 px-5 flex items-center gap-3 shadow-lg z-30 transition-all">
+                 <!-- Ícone de Painel de Velocidade (SVG com traço branco) -->
+                 <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 stroke-white stroke-[2] fill-none" viewBox="0 0 24 24">
+                     <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                     <path d="M5.636 19.364a9 9 0 1 1 12.728 0" />
+                     <path d="M16 9l-4 4" />
+                     <circle cx="12" cy="13" r="1" />
+                 </svg>
+                 <span id="speed-text" class="font-[Bangers] text-3xl text-white tracking-wide">55 km/h</span>
+             </div>
+
+             <!-- Placar de Doações Acumuladas (HUD Canto Superior Direito - Âmbar) [1] -->
+             <div id="score-layer" class="hidden absolute top-6 right-6 bg-amber-600 rounded-2xl py-2 px-5 flex items-center gap-3 shadow-lg z-30 transition-all">
+                 <!-- Ícone de Cesta/Balança de Alimentos (SVG Branco) -->
+                 <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 stroke-white stroke-[2] fill-none" viewBox="0 0 24 24">
+                     <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                     <path d="M12 3l8 4.5v9l-8 4.5l-8 -4.5v-9z" />
+                     <path d="M12 12l8 -4.5" />
+                     <path d="M12 12v9" />
+                     <path d="M12 12l-8 -4.5" />
+                     <path d="M12 12l0 -9" />
+                 </svg>
+                 <span id="score-text" class="font-[Bangers] text-3xl text-white tracking-wide">0 kg</span>
+             </div>
+
+             <!-- Balão de Alerta de Comidas Proibidas (Toast HUD) [3] -->
+             <div id="toast-layer" class="hidden absolute top-24 left-1/2 -translate-x-1/2 bg-red-600 border border-red-500 rounded-2xl py-3 px-6 flex items-center gap-3 shadow-2xl z-30 transition-all duration-300 transform scale-95 opacity-0">
+                 <span id="toast-text" class="font-bold text-xs md:text-sm text-white tracking-wide text-center">MENSAGEM DE ALERTA</span>
+             </div>
+
+            <!-- Modal de Game Over (Fica oculto por padrão) -->
+            <div id="game-over-modal" class="hidden flex-col items-center w-11/12 max-w-md bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-2xl z-30 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                <h2 class="font-[Bangers] text-5xl text-white tracking-wide mb-2">💥 BATIDA!</h2>
+                <p class="text-slate-300 text-sm mb-6 text-center">O caminhão colidiu com um obstáculo!</p>
+                
+                <!-- Placar de quilos coletados -->
+                <div class="text-center mb-8">
+                    <p class="text-xs text-slate-400 uppercase tracking-widest font-bold mb-1">Doações Coletadas</p>
+                    <span id="game-over-score" class="font-[Bangers] text-6xl text-green-400 tracking-wide">0 kg</span>
+                </div>
+
+                <!-- Formulário condicional para salvar recorde (oculto por padrão) -->
+                <div id="record-form" class="hidden w-full flex-col gap-3 mb-6">
+                    <p class="text-sm text-green-300 font-semibold text-center">🏆 Novo Recorde! Digite seu nome:</p>
+                    <input id="player-name-input" type="text" maxlength="15" placeholder="Seu Nome" class="w-full bg-black/40 border border-white/20 rounded-xl py-3 px-4 text-white text-center font-bold focus:outline-none focus:border-green-500 transition-all">
+                    <button id="btn-save-record" class="w-full bg-green-500 hover:bg-green-400 text-white font-bold py-3 rounded-xl shadow-[0_4px_0_#166534] active:shadow-[0_0px_0_#166534] active:translate-y-[4px] transition-all">
+                        SALVAR NO RANKING
+                    </button>
+                </div>
+
+                <!-- Botões de ação -->
+                <div class="flex flex-col gap-4 w-full">
+                    <button id="btn-restart" class="w-full bg-slate-100 hover:bg-white text-slate-900 font-bold py-3 rounded-xl shadow-[0_4px_0_#94a3b8] active:shadow-[0_0px_0_#94a3b8] active:translate-y-[4px] transition-all">
+                        TENTAR NOVAMENTE
+                    </button>
+                    <button id="btn-back-menu" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl shadow-[0_4px_0_#334155] active:shadow-[0_0px_0_#334155] active:translate-y-[4px] transition-all">
+                        MENU PRINCIPAL
+                    </button>
+                </div>
+            </div>
+
+        </div> <!-- Fim do ui-layer -->
+        
+        <!-- O Container onde o Three.js vai injetar o Canvas [1] -->
+        <div id="game-container" class="absolute inset-0 z-0"></div>
+     
+    </div> <!-- Fim do game-wrapper [1] -->
+
     <script type="module" src="js/main.js"></script>
 </body>
 </html>
