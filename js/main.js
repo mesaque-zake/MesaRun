@@ -56,6 +56,7 @@ let score = 0;              // Total de kg arrecadados
 let itemTimeout = null;     // Temporizador dinâmico para novos alimentos
 let toastTimeout = null;    // Temporizador para esconder o balão de alerta
 let leaderboard = JSON.parse(localStorage.getItem('mesarun_ranking')) || [];
+let lastTime = performance.now();
 
 function init() {
     console.log("MesaRun! Motor 3D Inicializado...");
@@ -142,7 +143,7 @@ function setupMenu() {
         } else {
             // DESVIAR DE FAIXA (Zonas Superiores) [2]
             if (x < rect.width / 2) {
-                movePlayerLeft(); // Metade esquerda
+             ;   movePlayerLeft(); // Metade esquerda
             } else {
                 movePlayerRight(); // Metade direita
             }
@@ -236,12 +237,16 @@ function startGameSequence() {
     }, 4500);
 }
 
-function gameLoop() {
+function gameLoop(time) {
     requestAnimationFrame(gameLoop);
     
+    // Calcula a variação de tempo real (Delta Time) e limita para evitar pulos caso trave [2]
+    const deltaTime = Math.min((time - lastTime) / 1000, 0.1); 
+    lastTime = time;
+
     if (!isGameOver) {
         updateWorld();
-        updateEntities(activeBraking);
+        updateEntities(activeBraking, deltaTime); // <-- PASSA O DELTA TIME PARA A FÍSICA
         
         // --- DINÂMICA DO VELOCÍMETRO EM TEMPO REAL ---
         if (isPlaying) {
