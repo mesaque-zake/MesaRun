@@ -383,12 +383,12 @@ function decoratePiece(piece, biomeName, pieceIndex) {
     if (shouldSpawnDecor) {
         const leftModelTemp = templates.models[Math.floor(Math.random() * templates.models.length)];
         piece.leftDecor = leftModelTemp.clone();
-        piece.leftDecor.position.set(xOffsetLeft, 0, zOffsetLeft);
+        piece.leftDecor.position.set(xOffsetLeft, 0.6, zOffsetLeft);
         piece.left.add(piece.leftDecor);
 
         const rightModelTemp = templates.models[Math.floor(Math.random() * templates.models.length)];
         piece.rightDecor = rightModelTemp.clone();
-        piece.rightDecor.position.set(xOffsetRight, 0, zOffsetRight);
+        piece.rightDecor.position.set(xOffsetRight, 0.6, zOffsetRight);
         piece.right.add(piece.rightDecor);
     }
 
