@@ -9,6 +9,7 @@ const footer = document.getElementById('footer');
 const countdownLayer = document.getElementById('countdown-layer');
 const countdownText = document.getElementById('countdown-text');
 const hudLayer = document.getElementById('hud-layer');
+const gameWrapper = document.getElementById('game-wrapper');
 
 // --- VARIÁVEIS DO CRONÔMETRO DE BIOMAS ---
 let biomeTimer = null;                         // Timer de 60 segundos [2]
@@ -117,6 +118,50 @@ function setupMenu() {
         if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
             activeBraking = false;  // Libera o estado de freio interno
             setBrakingState(false); // Libera a física do asfalto para voltar a andar!
+        }
+    });
+
+    // Controle invisível unificado por cliques de mouse e toques na tela (Pointer Events) [1, 2]
+    gameWrapper.addEventListener('pointerdown', (e) => {
+        if (!isPlaying || isGameOver) return; // Só ativa após o countdown e se não bater [2]
+
+        const rect = gameWrapper.getBoundingClientRect();
+        const x = e.clientX - rect.left; // Posição horizontal do toque/clique
+        const y = e.clientY - rect.top;  // Posição vertical do toque/clique
+
+        const brakeThreshold = rect.height * 0.8; // Linha invisível dos 20% inferiores da tela
+
+        if (y > brakeThreshold) {
+            // PISAR NO FREIO (Zona Inferior) [2]
+            if (!activeBraking && brakeCharges > 0) {
+                activeBraking = true;
+                brakeCharges--;
+                setBrakingState(true);
+                updateBrakeUI(); // Apaga um ícone de freio na tela
+            }
+        } else {
+            // DESVIAR DE FAIXA (Zonas Superiores) [2]
+            if (x < rect.width / 2) {
+                movePlayerLeft(); // Metade esquerda
+            } else {
+                movePlayerRight(); // Metade direita
+            }
+        }
+    });
+
+    // SOLTAR O TOQUE OU O CLIQUE (Libera o freio automaticamente) [2]
+    gameWrapper.addEventListener('pointerup', () => {
+        if (activeBraking) {
+            activeBraking = false;
+            setBrakingState(false);
+        }
+    });
+
+    // Se o dedo arrastar ou o mouse sair da tela de jogo enquanto freia, libera o freio [2]
+    gameWrapper.addEventListener('pointerleave', () => {
+        if (activeBraking) {
+            activeBraking = false;
+            setBrakingState(false);
         }
     });
 
