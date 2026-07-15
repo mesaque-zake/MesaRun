@@ -6,9 +6,9 @@ export let scene, camera, renderer, dirLight, hemisphereLight;
 // o caminhão aparecerá maior e mais detalhado, sem perder a visão da pista à frente!
 const FRUSTUM_SIZE = 52; 
 // --- COORDENADAS DINÂMICAS DA CÂMERA ---
-const menuCameraPos = new THREE.Vector3(-20, 20, -50); // Câmera perto e dramática no menu
-const playCameraPosLeft = new THREE.Vector3(-20, 60, -110); // Diagonal Esquerda padrão
-const playCameraPosRight = new THREE.Vector3(20, 60, -110);  // Diagonal Direita espelhada [2]
+const menuCameraPos = new THREE.Vector3(-30, 50, -50); // Câmera perto e dramática no menu
+const playCameraPosLeft = new THREE.Vector3(-30, 50, -110); // Diagonal Esquerda padrão
+const playCameraPosRight = new THREE.Vector3(30, 50, -110);  // Diagonal Direita espelhada [2]
 let isCameraFlipped = false;                              // Flag que monitora a inversão da câmera
 
 // Permite ao main.js alternar a câmera durante a transição
