@@ -7,8 +7,8 @@ export let scene, camera, renderer, dirLight, hemisphereLight;
 const FRUSTUM_SIZE = 52; 
 // --- COORDENADAS DINÂMICAS DA CÂMERA ---
 const menuCameraPos = new THREE.Vector3(-30, 20, -40); // Câmera perto e dramática no menu
-const playCameraPosLeft = new THREE.Vector3(-70, 47, -90); // Diagonal Esquerda padrão
-const playCameraPosRight = new THREE.Vector3(70, 47, -90);  // Diagonal Direita espelhada [2]
+const playCameraPosLeft = new THREE.Vector3(-40, 60, -110); // Diagonal Esquerda padrão
+const playCameraPosRight = new THREE.Vector3(40, 60, -110);  // Diagonal Direita espelhada [2]
 let isCameraFlipped = false;                              // Flag que monitora a inversão da câmera
 
 // Permite ao main.js alternar a câmera durante a transição
