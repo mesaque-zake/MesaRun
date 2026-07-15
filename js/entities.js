@@ -266,20 +266,25 @@ export function movePlayerRight() {
 
 let markTimer = 0; // Temporizador para não gerar rastros em excesso
 
-// EXECUTA A FÍSICA DO JOGADOR E DOS OBSTÁCULOS (Deve ser exportada no escopo global)
-export function updateEntities(isBraking) {
+// EXECUTA A FÍSICA DO JOGADOR E DOS OBSTÁCULOS (Agora independente da taxa de quadros/Hz!) [2]
+export function updateEntities(isBraking, deltaTime = 0.016) {
     if (!truckModel) return;
 
-    // Interpola a rotação Y para simular o caminhão fazendo a curva na transição! [2]
-    truckModel.rotation.y += (targetTruckRotationY - truckModel.rotation.y) * 0.05;
+    // 60 é o nosso multiplicador base para bater exatamente com a velocidade confortável do seu PC [2]
+    const frameRatio = deltaTime * 60; 
+    const adjustedLerp = Math.min(LERP_SPEED * frameRatio, 1);
+    const adjustedRoll = Math.min(ROLL_SPEED * frameRatio, 1);
 
-    // 1. Deslizamento Lateral Suave (LERP) no eixo X (MUDADO PARA USAR currentLanes!)
+    // Interpola a rotação Y para simular o caminhão fazendo a curva na transição
+    truckModel.rotation.y += (targetTruckRotationY - truckModel.rotation.y) * 0.05 * frameRatio;
+
+    // 1. Deslizamento Lateral Suave (LERP) no eixo X (Usando a velocidade ajustada pelo tempo real) [2]
     const deltaX = targetX - truckModel.position.x;
-    truckModel.position.x += deltaX * LERP_SPEED;
+    truckModel.position.x += deltaX * adjustedLerp;
 
-    // 2. Física de Inclinação Lateral (Body Roll)
+    // 2. Física de Inclinação Lateral (Body Roll) (Usando as velocidades ajustadas) [2]
     const targetRoll = -deltaX * MAX_ROLL; 
-    truckModel.rotation.z += (targetRoll - truckModel.rotation.z) * ROLL_SPEED;
+    truckModel.rotation.z += (targetRoll - truckModel.rotation.z) * adjustedRoll;
 
     // 3. Geração de marcas de pneu se estiver freando
     if (isBraking && currentSpeed > 0.05) {
@@ -292,35 +297,34 @@ export function updateEntities(isBraking) {
         markTimer = 0;
     }
 
-    // 4. Movimento e Ciclo de Vida dos Obstáculos
+    // 4. Movimento e Ciclo de Vida dos Obstáculos (Sincronizado com o Delta Time para o tráfego também!) [2]
     const OBSTACLE_BASE_SPEED = 0.16; 
 
     for (let i = activeObstacles.length - 1; i >= 0; i--) {
         const obs = activeObstacles[i];
-        // Pela física de movimento relativo: velocidade do cenário menos a velocidade própria do obstáculo
-        const relativeSpeed = currentSpeed - OBSTACLE_BASE_SPEED;
+        
+        // Sincroniza a velocidade de aproximação dos carros com o tempo real [2]
+        const relativeSpeed = (currentSpeed - OBSTACLE_BASE_SPEED) * frameRatio;
         obs.position.z -= relativeSpeed;
 
         if (obs.position.z < -45) {
-            scene.remove(obs); // Apenas remove da cena 3D de forma segura
-            activeObstacles.splice(i, 1); // Remove da nossa array de controle
+            scene.remove(obs); 
+            activeObstacles.splice(i, 1); 
         }
     }
 
-    // --- MOVIMENTO E ANIMAÇÃO DOS ALIMENTOS ---
+    // --- MOVIMENTO E ANIMAÇÃO DOS ALIMENTOS (Sincronizado com Delta Time) ---
     for (let i = activeItems.length - 1; i >= 0; i--) {
         const item = activeItems[i];
         
-        // Move os alimentos atrelados à velocidade da rua (freio afeta os alimentos de forma perfeita!)
-        item.mesh.position.z -= currentSpeed;
+        // Move os alimentos de forma síncrona com o tempo real [2]
+        item.mesh.position.z -= currentSpeed * frameRatio;
 
         // Animação: Leve balanço vertical de flutuação em torno da altura 3.2 [2]
-        item.spawnTime += 0.05;
+        item.spawnTime += 0.05 * frameRatio;
         item.mesh.position.y = 3.2 + Math.sin(item.spawnTime) * 0.15; 
 
-        // ROTAÇÃO DE 90º: Oscilação suave de um lado para o outro (pêndulo) [2]
-        // Math.sin oscila entre -1 e 1. Multiplicado por 0.785 radianos (~45 graus)
-        // cria um movimento de balanço de -45° a +45°, resultando na amplitude de 90°!
+        // ROTAÇÃO DE 90º: Oscilação síncrona de um lado para o outro [2]
         item.mesh.rotation.y = Math.sin(item.spawnTime * 1.3) * 0.785;
 
         // Limpeza de memória se o item passar do caminhão
@@ -329,8 +333,7 @@ export function updateEntities(isBraking) {
             activeItems.splice(i, 1);
         }
     }
-
-} // <-- FECHA AQUI A FUNÇÃO updateEntities!
+}
 
 // Instancia um clone aleatório de qualquer carro carregado na nossa frota [1]
 export function spawnObstacle() {
