@@ -1,606 +1,550 @@
-import { initEngine, renderEngine, scene, triggerCameraShake, setCameraFlippedState } from './engine.js';
-import { createWorld, updateWorld, setBrakingState, currentSpeed, setActiveBiome } from './world.js';
-import { createEntities, movePlayerLeft, movePlayerRight, updateEntities, spawnObstacle, checkCollisions, resetEntities, spawnItem, checkItemCollections, setTruckTransitionTurn, updateLaneOffsets } from './entities.js';
-// Elementos da Interface (UI)
-const menuBackdrop = document.getElementById('menu-backdrop');
-const mainMenu = document.getElementById('main-menu');
-const rankingModal = document.getElementById('ranking-modal');
-const footer = document.getElementById('footer');
-const countdownLayer = document.getElementById('countdown-layer');
-const countdownText = document.getElementById('countdown-text');
-const hudLayer = document.getElementById('hud-layer');
-const gameWrapper = document.getElementById('game-wrapper');
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { scene, dirLight, hemisphereLight } from './engine.js'; // <-- IMPORTA AS LUZES
 
-// --- VARIÁVEIS DO CRONÔMETRO DE BIOMAS ---
-let biomeTimer = null;                         // Timer de 60 segundos [2]
-const BIOMES_LIST = ['nature', 'suburban', 'industrial', 'city']; // Lista de fases [1]
-let currentBiomeIndex = 0;                     // Índice da fase ativa
-let isFlipped = false;                         // Flag que monitora a inversão de câmera
+export let roadGroup;
+let dashedLines = [];
+let roadPieces = [];
 
-// Botões
-const btnPlay = document.getElementById('btn-play');
-const btnRanking = document.getElementById('btn-ranking');
-const btnCloseRanking = document.getElementById('btn-close-ranking');
+const ROAD_LENGTH = 360; 
 
-// --- CONTROLE DE FREIOS (MesaRun!) ---
-let isGameOver = false;     // Controla o congelamento (Hit Stop) da tela
-let isPlaying = false; 
-let brakeCharges = 3;       // Limite de 3 cargas por partida
-let activeBraking = false;  // Monitora se o botão de freio está pressionado agora
-let spawnerInterval = null; // Armazena o timer do spawn para podermos parar no game over
+// --- CONTROLE DE VELOCIDADE DINÂMICA (FREIO) ---
+export let currentSpeed = 0.5;     // Velocidade que flutua dinamicamente
+const NORMAL_SPEED = 0.5;          // Velocidade padrão de cruzeiro
+const DECEL_RATE = 0.08;           // Quão rápido o caminhão desacelera ao pisar no freio
+const ACCEL_RATE = 0.02;           // Quão rápido ele acelera de volta ao soltar
+let isBraking = false;             // Flag que monitora o estado de freio
 
-// Elementos da UI de Game Over
-const gameOverModal = document.getElementById('game-over-modal');
-const gameOverScore = document.getElementById('game-over-score');
-const recordForm = document.getElementById('record-form');
-const playerNameInput = document.getElementById('player-name-input');
+let tireMarks = [];                // Array para armazenar as marcas de pneu na pista
 
+// --- CONFIGURAÇÃO COMPLETA E HIGIENIZADA DOS BIOMAS (MesaRun!) ---
+const BIOME_CONFIG = {
+    nature: {
+        folder: 'assets/model/biome/nature/',
+        // Todos os 50 modelos de árvores que você mapeou
+        models: [
+            'tree_cone.glb', 'tree_cone_dark.glb', 'tree_cone_fall.glb', 'tree_default.glb',
+            'tree_default_dark.glb', 'tree_default_fall.glb', 'tree_detailed.glb',
+            'tree_detailed_dark.glb', 'tree_detailed_fall.glb', 'tree_fat.glb', 'tree_fat_darkh.glb',
+            'tree_fat_fall.glb', 'tree_oak.glb', 'tree_oak_dark.glb', 'tree_oak_fall.glb', 'tree_palm.glb',
+            'tree_palmBend.glb', 'tree_palmDetailedShort.glb', 'tree_palmDetailedTall.glb',
+            'tree_palmShort.glb', 'tree_palmTall.glb', 'tree_pineDefaultA.glb', 'tree_pineDefaultB.glb',
+            'tree_pineGroundA.glb', 'tree_pineGroundB.glb', 'tree_pineRoundA.glb',
+            'tree_pineRoundB.glb', 'tree_pineRoundC.glb', 'tree_pineRoundD.glb', 'tree_pineRoundE.glb',
+            'tree_pineRoundF.glb', 'tree_pineSmallA.glb', 'tree_pineSmallB.glb', 'tree_pineSmallC.glb',
+            'tree_pineSmallD.glb', 'tree_pineTallA.glb', 'tree_pineTallA_detailed.glb',
+            'tree_pineTallB.glb', 'tree_pineTallB_detailed.glb', 'tree_pineTallC.glb',
+            'tree_pineTallC_detailed.glb', 'tree_pineTallD.glb', 'tree_pineTallD_detailed.glb',
+            'tree_plateau.glb', 'tree_plateau_dark.glb', 'tree_simple_dark.glb', 'tree_simple_fall.glb',
+            'tree_tall.glb', 'tree_thin.glb', 'tree_thin_dark.glb'
+        ],
+        detailFolder: 'assets/model/biome/nature/detail/',
+        // Todos os 29 detalhes que você mapeou (incluindo o pote de macumba)
+        details: [
+            'cactus_tall.glb', 'crops_wheatStageA.glb', 'flower_redA.glb', 'flower_yellowB.glb',
+            'grass_large.glb', 'grass_leafsLarge.glb', 'macumba.glb', 'mushroom_redGroup.glb',
+            'mushroom_redTall.glb', 'mushroom_tanGroup.glb', 'path_stoneCircle.glb',
+            'plant_bushDetailed.glb', 'plant_bushLarge.glb', 'plant_bushLargeTriangle.glb',
+            'plant_bushTriangle.glb', 'rock_largeB.glb', 'rock_largeE.glb', 'rock_smallA.glb',
+            'rock_smallFlatA.glb', 'rock_smallTopA.glb', 'rock_smallTopB.glb', 'rock_tallA.glb',
+            'sign.glb', 'stone_largeA.glb', 'stone_largeD.glb', 'stone_smallF.glb', 'stone_tallA.glb',
+            'tree_blocks.glb', 'tree_blocks_fall.glb'
+        ]
+    },
+    suburban: {
+        folder: 'assets/model/biome/suburban/',
+        // Todos os 18 modelos de casas residenciais que você mapeou
+        models: [
+            'building-type-a.glb', 'building-type-b.glb', 'building-type-c.glb', 'building-type-d.glb',
+            'building-type-e.glb', 'building-type-f.glb', 'building-type-g.glb', 'building-type-h.glb',
+            'building-type-i.glb', 'building-type-j.glb', 'building-type-k.glb', 'building-type-m.glb',
+            'building-type-n.glb', 'building-type-o.glb', 'building-type-r.glb', 'building-type-s.glb',
+            'building-type-t.glb', 'building-type-u.glb'
+        ],
+        detailFolder: 'assets/model/biome/nature/detail/',
+        // REGRA DE HIGIENIZAÇÃO: Apenas tufos de gramas crescerão nas calçadas do subúrbio [2]
+        details: [
+            'grass_large.glb', 'grass_leafsLarge.glb'
+        ]
+    },
+    industrial: {
+        folder: 'assets/model/biome/industrial/',
+        // Todos os 20 modelos de galpões e indústrias que você mapeou
+        models: [
+            'building-a.glb', 'building-b.glb', 'building-c.glb', 'building-d.glb', 'building-e.glb',
+            'building-f.glb', 'building-g.glb', 'building-h.glb', 'building-i.glb', 'building-j.glb',
+            'building-k.glb', 'building-l.glb', 'building-m.glb', 'building-n.glb', 'building-o.glb',
+            'building-p.glb', 'building-q.glb', 'building-r.glb', 'building-s.glb', 'building-t.glb'
+        ],
+        detailFolder: null, // Sem pasta de detalhes naturais (Adeus natureza!) [2]
+        details: []         // Sem grama ou pedras (Habilita apenas o poste de luz urbano) [2]
+    },
+    city: {
+        folder: 'assets/model/biome/city/',
+        // Todos os 17 modelos de prédios comerciais e arranha-céus que você mapeou unidos [2]
+        models: [
+            'building-a.glb', 'building-c.glb', 'building-e.glb', 'building-f.glb', 'building-g.glb',
+            'building-h.glb', 'building-i.glb', 'building-j.glb', 'building-k.glb', 'building-l.glb',
+            'building-m.glb', 'building-n.glb', 'skyscraper-a.glb', 'skyscraper-b.glb', 'skyscraper-c.glb',
+            'skyscraper-d.glb', 'skyscraper-e.glb'
+        ],
+        detailFolder: null, // Sem pasta de detalhes naturais [2]
+        details: []         // Sem vegetação (Habilita apenas o poste de luz urbano) [2]
+    }
+};
+export let streetlightTemplate = null;
+export let activeBiome = 'nature';    // Bioma atualmente ativo na pista
+export let groundPlane;                // Chão infinito que "pinta" o fundo [1]
+let biomeTemplates = {                 // Guarda os templates carregados por bioma [1]
+    nature: { models: [], details: [] },
+    suburban: { models: [], details: [] },
+    industrial: { models: [], details: [] },
+    city: { models: [], details: [] }
+};
 
-// Elementos da UI do Velocímetro
-const speedometerLayer = document.getElementById('speedometer-layer');
-const speedText = document.getElementById('speed-text');
-
-// Botões do Game Over
-const btnRestart = document.getElementById('btn-restart');
-const btnBackMenu = document.getElementById('btn-back-menu');
-const btnSaveRecord = document.getElementById('btn-save-record');
-
-// Elementos da UI de Pontuação e Avisos (HUD)
-const scoreLayer = document.getElementById('score-layer');
-const scoreText = document.getElementById('score-text');
-const toastLayer = document.getElementById('toast-layer');
-const toastText = document.getElementById('toast-text');
-
-// --- VARIÁVEIS DE PONTUAÇÃO E SPAWN ---
-let score = 0;              // Total de kg arrecadados
-let itemTimeout = null;     // Temporizador dinâmico para novos alimentos
-let toastTimeout = null;    // Temporizador para esconder o balão de alerta
-let leaderboard = JSON.parse(localStorage.getItem('mesarun_ranking')) || [];
-let lastTime = performance.now();
-
-function init() {
-    console.log("MesaRun! Motor 3D Inicializado...");
-    initEngine();
+// Altera o bioma, pinta o chão e ajusta a iluminação e clima dinamicamente [2]
+export function setActiveBiome(biomeName) {
+    activeBiome = biomeName;
     
-    // --- CARREGAMENTO IMEDIATO DO CENÁRIO (Roda em desfoque atrás do menu) ---
-    createWorld(scene);
-    createEntities(scene);
-    
-    // Liga as funções de clique dos botões do menu
-    setupMenu();
+    // 1. PINTA O CHÃO INFINITO DE ACORDO COM A FASE [1, 2]
+    if (groundPlane && groundPlane.material) {
+        let groundColor = 0x557a2b; // Verde Grama (Floresta)
+        if (biomeName === 'suburban') groundColor = 0x8a7d6e; // Cinza-Terra
+        if (biomeName === 'industrial') groundColor = 0xa0a0a0; // CINZA CIMENTO CLARO (MUDADO!)
+        if (biomeName === 'city') groundColor = 0xa0a0a0; // CINZA CIMENTO CLARO (MUDADO!)
+        
+        groundPlane.material.color.setHex(groundColor);
+    }
 
-    // Começa o loop da engine
-    gameLoop();
+    // 2. AJUSTE DE CLIMA E ILUMINAÇÃO DINÂMICA NAS LUZES [2]
+    if (dirLight && hemisphereLight) {
+        if (biomeName === 'nature') {
+            // Floresta: Luz solar amarelada quente e forte [2]
+            dirLight.color.setHex(0xfcecca);
+            dirLight.intensity = 1.15;
+            hemisphereLight.intensity = 0.5;
+            scene.fog = null; // Sem neblina
+        } 
+        else if (biomeName === 'suburban') {
+            // Subúrbio: Luz neutra, branca e clara do dia [2]
+            dirLight.color.setHex(0xfcfbe3);
+            dirLight.intensity = 1.0;
+            hemisphereLight.intensity = 0.45;
+            scene.fog = null; // Sem neblina
+        } 
+        else if (biomeName === 'industrial') {
+            // Indústria: "O céu fechou" moderadamente (luz um pouco mais fria e nublada) [2]
+            dirLight.color.setHex(0xe1ecf0);
+            dirLight.intensity = 0.70; // Brilho de segurança excelente para visibilidade!
+            hemisphereLight.intensity = 0.40;
+            scene.fog = null; // Sem neblina
+        } 
+        else if (biomeName === 'city') {
+            // Centro Urbano: Entardecer limpo, elegante e muito luminoso (sem névoa escura) [2]
+            dirLight.color.setHex(0xfcd2dc);
+            dirLight.intensity = 0.85;
+            hemisphereLight.intensity = 0.45;
+            scene.fog = null; // Sem neblina cinza cobrindo a rua
+        }
+    }
 }
 
-function setupMenu() {
-    // Abrir o Ranking (Carrega os dados reais do dispositivo antes de abrir)
-    btnRanking.addEventListener('click', () => {
-        updateLeaderboardUI(); // Atualiza a lista visualmente
-        mainMenu.classList.add('hidden');
-        rankingModal.classList.remove('hidden');
-        rankingModal.classList.add('flex');
-    });
 
-    // Fechar o Ranking (Voltar)
-    btnCloseRanking.addEventListener('click', () => {
-        rankingModal.classList.add('hidden');
-        rankingModal.classList.remove('flex');
-        mainMenu.classList.remove('hidden');
-    });
+// Função para o main.js ativar/desativar o estado do freio
+export function setBrakingState(state) {
+    isBraking = state;
+}
 
-    // Clicar no Play (Inicia a sequência)
-    btnPlay.addEventListener('click', () => {
-        startGameSequence();
-    });
+// === PAINEL DE CONTROLE DA RUA ===
+// Diminuímos a largura de 7.5 para 4.5 para uma proporção perfeita de 3 faixas
+const LARGURA = 4.5; 
+const ALTURA = 3.5;  
+const PIECE_LENGTH = 4.5; // Z acompanha a largura para as peças não se sobreporem
+const NUM_PIECES = 85; // Aumentamos a quantidade porque as peças ficaram mais curtas
+const ROAD_HEIGHT = 2.4; 
 
-    // Adiciona escuta do teclado (Ação contínua e limites de freio padrão de corrida)
-    window.addEventListener('keydown', (e) => {
-        if (!isPlaying) return;
+export function createWorld(scene) {
+    roadGroup = new THREE.Group();
+    scene.add(roadGroup);
 
-        // Comportamento padrão simples: esquerda vai para a esquerda, direita vai para a direita
-        if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
-            movePlayerLeft();
-        } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
-            movePlayerRight();
-        }
+    const loader = new GLTFLoader();
+    
+    // --- CARREGAMENTO ASSÍNCRONO DOS ASSETS DE BIOMAS [1] ---
+    Object.keys(BIOME_CONFIG).forEach((bKey) => {
+        const conf = BIOME_CONFIG[bKey];
         
-        // Ativa o Freio (Pressionar)
-        if ((e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') && !activeBraking && brakeCharges > 0) {
-            activeBraking = true;
-            brakeCharges--;
-            setBrakingState(true);
-            updateBrakeUI(); // Apaga um ícone na tela
-        }
+        // Carrega modelos principais (árvores ou prédios)
+        conf.models.forEach((file) => {
+            loader.load(conf.folder + file, (gltf) => {
+                const model = gltf.scene;
+                // Floresta usa tamanho 3.2, subúrbio e indústrias usam prédios maiores (escala 6.5) [1]
+                normalizeScenery(model, bKey === 'nature' ? 3.2 : 6.5);
+                biomeTemplates[bKey].models.push(model);
+            });
+        });
+
+        // Carrega modelos de detalhes (vegetações, flores e o pote de barro)
+        conf.details.forEach((file) => {
+            loader.load(conf.detailFolder + file, (gltf) => {
+                const detail = gltf.scene;
+                
+                // CORREÇÃO CRUCIAL: Salva o nome do arquivo limpo (ex: 'macumba') para podermos identificá-lo [1]
+                detail.name = file.replace('.glb', ''); 
+                
+                normalizeScenery(detail, 1.2);
+                biomeTemplates[bKey].details.push(detail);
+            });
+        });
+
+        // --- CRIAÇÃO DO CHÃO INFINITO (Pinta o fundo sob a rua) [1] ---
+        const groundGeo = new THREE.PlaneGeometry(1000, 1000);
+        const groundMat = new THREE.MeshLambertMaterial({ color: 0x557a2b }); // Inicia com o verde da grama
+        groundPlane = new THREE.Mesh(groundGeo, groundMat);
+        groundPlane.rotation.x = -Math.PI / 2;
+    
+        // Posiciona em Y: 2.38 (ligeiramente abaixo do asfalto que está em 2.4 para não piscar)
+        groundPlane.position.set(0, 2, 0); 
+        groundPlane.receiveShadow = true;
+        scene.add(groundPlane);
+        
+        // --- CARREGAMENTO DO POSTE DE LUZ URBANO [1, 2] ---
+       const sLoader = new GLTFLoader();
+       sLoader.load(
+           'assets/sprite/road/light-square.glb',
+           (gltf) => {
+               const streetlight = gltf.scene;
+               // Normaliza a altura do poste em 5.0 unidades (tamanho padrão de iluminação pública) [1, 2]
+               normalizeScenery(streetlight, 5.0);
+               streetlightTemplate = streetlight;
+               console.log("Template do Poste de Luz carregado com sucesso!");
+           },
+           undefined,
+           (error) => {
+               console.error("Erro ao carregar o poste de luz:", error);
+           }
+       );
     });
 
-    // ESCUTA DE SOLTURA DE TECLA: Percebe quando você solta a seta para baixo (o down) ou a tecla "S" [2]
-    window.addEventListener('keyup', (e) => {
-        if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
-            activeBraking = false;  // Libera o estado de freio interno
-            setBrakingState(false); // Libera a física do asfalto para voltar a andar!
-        }
-    });
+    loader.load(
+        'assets/sprite/road/road-side.gltf', 
+        function (gltf) {
+            const baseModel = gltf.scene;
+            baseModel.scale.set(LARGURA, ALTURA, LARGURA);
 
-    // Controle invisível unificado por cliques de mouse e toques na tela (Pointer Events) [1, 2]
-    gameWrapper.addEventListener('pointerdown', (e) => {
-        if (!isPlaying || isGameOver) return; // Só ativa após o countdown e se não bater [2]
+            const box = new THREE.Box3().setFromObject(baseModel);
+            const bordaDoAsfalto = box.max.x; 
 
-        const rect = gameWrapper.getBoundingClientRect();
-        const x = e.clientX - rect.left; // Posição horizontal do toque/clique
-        const y = e.clientY - rect.top;  // Posição vertical do toque/clique
+            const posicaoDaLinha = 3.5; 
+            const lineXPositions = [-posicaoDaLinha, posicaoDaLinha]; 
 
-        const brakeThreshold = rect.height * 0.8; // Linha invisível dos 20% inferiores da tela
+            const lineGeometry = new THREE.PlaneGeometry(0.3, 3);
+            const lineMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x999999,
+                transparent: true,
+                opacity: 0.5
+            });
 
-        if (y > brakeThreshold) {
-            // PISAR NO FREIO (Zona Inferior) [2]
-            if (!activeBraking && brakeCharges > 0) {
-                activeBraking = true;
-                brakeCharges--;
-                setBrakingState(true);
-                updateBrakeUI(); // Apaga um ícone de freio na tela
+            for (let x of lineXPositions) {
+                for (let z = -ROAD_LENGTH / 2; z < ROAD_LENGTH / 2; z += 6) {
+                    const line = new THREE.Mesh(lineGeometry, lineMaterial);
+                    line.rotation.x = -Math.PI / 2;
+                    line.position.set(x, ROAD_HEIGHT, z); 
+                    roadGroup.add(line);
+                    dashedLines.push(line);
+                }
             }
-        } else {
-            // DESVIAR DE FAIXA (Zonas Superiores) [2]
-            if (x < rect.width / 2) {
-             ;   movePlayerLeft(); // Metade esquerda
+
+            for (let i = 0; i < NUM_PIECES; i++) {
+                const zPos = (i * PIECE_LENGTH) - (ROAD_LENGTH / 2);
+
+                const leftSide = baseModel.clone();
+                leftSide.position.set(-bordaDoAsfalto, 0, zPos);
+
+                const rightSide = baseModel.clone();
+                rightSide.scale.set(-LARGURA, ALTURA, LARGURA); 
+                rightSide.position.set(bordaDoAsfalto, 0, zPos);
+
+                roadGroup.add(leftSide);
+                roadGroup.add(rightSide);
+
+                const pieceObj = { left: leftSide, right: rightSide };
+                
+                // --- DECORA AS CALÇADAS INICIAIS DA PARTIDA ---
+                // Aguardamos 1 segundo para garantir que as árvores já carregaram na memória
+                setTimeout(() => {
+                    decoratePiece(pieceObj, activeBiome);
+                }, 1000);
+
+                roadPieces.push(pieceObj);
+            }
+        }, 
+        undefined, 
+        function (error) {
+            console.error("Erro ao carregar a rua:", error);
+        }
+    );
+}
+
+export function updateWorld() {
+    if (!roadGroup) return;
+
+    // 1. Interpolação de velocidade baseada no freio
+    if (isBraking) {
+        // Desacelera até quase parar (0.01 de velocidade residual para manter a física em movimento)
+        currentSpeed += (0.01 - currentSpeed) * DECEL_RATE;
+    } else {
+        // Acelera suavemente de volta ao normal
+        currentSpeed += (NORMAL_SPEED - currentSpeed) * ACCEL_RATE;
+    }
+
+    // Move as linhas pontilhadas usando a currentSpeed
+    dashedLines.forEach(line => {
+        line.position.z -= currentSpeed; 
+        if (line.position.z < -ROAD_LENGTH / 2) {
+            line.position.z += ROAD_LENGTH;
+        }
+    });
+
+    // Move a rua na direção negativa (vindo para trás)
+    roadPieces.forEach((piece, i) => { // <-- ADICIONADO "i" AQUI! [1]
+        piece.left.position.z -= currentSpeed;
+        piece.right.position.z -= currentSpeed;
+
+        // Se a calçada passou da câmera, teletransporta lá para o fundo do horizonte
+        if (piece.left.position.z < -ROAD_LENGTH / 2) {
+            piece.left.position.z += (NUM_PIECES * PIECE_LENGTH);
+            piece.right.position.z += (NUM_PIECES * PIECE_LENGTH);
+
+            // Redecora passando o índice para controle de espaçamento [1, 2]
+            decoratePiece(piece, activeBiome, i); // <-- ADICIONADO "i" NO PARÂMETRO!
+        }
+    });
+
+    // Move e limpa as marcas de pneu
+    updateTireMarks();
+}
+
+// Normaliza o tamanho dos elementos de cenário e ativa as sombras [1]
+function normalizeScenery(model, targetSize) {
+    model.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(model);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const scaleFactor = (maxDim > 0.01) ? (targetSize / maxDim) : 1;
+    model.scale.set(scaleFactor, scaleFactor, scaleFactor);
+    
+    model.traverse((child) => {
+        if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+        }
+    });
+}
+
+// Limpa e re-decora as calçadas e a paisagem lateral de forma inteligente [2]
+function decoratePiece(piece, biomeName, pieceIndex) {
+    if (piece.leftDecor) piece.left.remove(piece.leftDecor);
+    if (piece.rightDecor) piece.right.remove(piece.rightDecor);
+    if (piece.leftDetail) piece.left.remove(piece.leftDetail);
+    if (piece.rightDetail) piece.right.remove(piece.rightDetail);
+
+    const templates = biomeTemplates[biomeName];
+    if (!templates || templates.models.length === 0) return;
+
+    // --- CONTROLE DE ESPAÇAMENTO LONGITUDINAL (EVITA SOBREPOSIÇÃO DE CONSTRUÇÕES) [1] ---
+    let shouldSpawnDecor = true;
+    if (biomeName !== 'nature') {
+        // Casas do subúrbio nascem a cada 5 peças. Galpões e arranha-céus gigantes nascem a cada 7 peças! [1, 2]
+        const spacingModulo = (biomeName === 'suburban') ? 5 : 7;
+        shouldSpawnDecor = (pieceIndex % spacingModulo === 0);
+    }
+
+    // --- CÁLCULO DE AFASTAMENTO E ESPALHAMENTO DOS BIOMAS ---
+    let xOffsetLeft = -2.3;
+    let xOffsetRight = -2.3; // Compensa escala negativa da calçada direita
+    let zOffsetLeft = 0;
+    let zOffsetRight = 0;
+
+    if (biomeName === 'nature') {
+        // Floresta: Espalha de forma orgânica
+        xOffsetLeft = -2.1 - Math.random() * 1;
+        xOffsetRight = -2.1 - Math.random() * 1;
+        zOffsetLeft = (Math.random() - 0.5) * 4.0;
+        zOffsetRight = (Math.random() - 0.5) * 4.0;
+    } else {
+        // Biomas urbanos: Pushed significativamente para trás (de -3.6 para -5.0!) [2]
+        // Isso joga as construções gigantes profundamente para a margem, limpando 100% a visão da pista
+        xOffsetLeft = -5.0;
+        xOffsetRight = -5.0;
+    }
+
+    // --- PAISAGEM LATERAL (Árvores e Prédios) ---
+    if (shouldSpawnDecor) {
+        const leftModelTemp = templates.models[Math.floor(Math.random() * templates.models.length)];
+        piece.leftDecor = leftModelTemp.clone();
+        piece.leftDecor.position.set(xOffsetLeft, 0, zOffsetLeft);
+        piece.left.add(piece.leftDecor);
+
+        const rightModelTemp = templates.models[Math.floor(Math.random() * templates.models.length)];
+        piece.rightDecor = rightModelTemp.clone();
+        piece.rightDecor.position.set(xOffsetRight, 0, zOffsetRight);
+        piece.right.add(piece.rightDecor);
+    }
+
+    // --- DETALHES DA CALÇADA (Flores, Gramas e Potes de Barro - Macumba) ---
+    if (templates.details.length > 0) {
+        
+        // --- DETALHES DA CALÇADA (Flores, Gramas, Macumba ou POSTES DE LUZ) [2] ---
+        // Sorteamos a presença do poste de luz nos biomas urbanos a cada 4 calçadas (intervalo de 18m) [1, 2]
+        const isUrban = (biomeName !== 'nature');
+        const shouldSpawnStreetlight = isUrban && streetlightTemplate && (pieceIndex % 18 === 0);
+
+        if (shouldSpawnStreetlight) {
+            // Calçada Esquerda: Posiciona e rotaciona -90° para o braço apontar para a pista [2]
+            piece.leftDetail = streetlightTemplate.clone();
+            piece.leftDetail.position.set(-0.6, 0.4, 0);
+            piece.leftDetail.rotation.y = Math.PI / 2; // Gira o braço para a direita (asfalto) [2]
+            piece.left.add(piece.leftDetail);
+
+            // Calçada Direita: Posiciona e rotaciona +90° para compensar o espelhamento e apontar para a pista [2]
+            piece.rightDetail = streetlightTemplate.clone();
+            piece.rightDetail.position.set(-0.6, 0.4, 0);
+            piece.rightDetail.rotation.y = -Math.PI / 2; // Gira o braço para a esquerda (asfalto) [2]
+            piece.right.add(piece.rightDetail);
+        }
+        else if (templates.details.length > 0) {
+            // Se não for peça de poste (ou se for floresta), gera os detalhes comuns (flores, gramas ou macumba) [2]
+        
+            // --- CALÇADA ESQUERDA ---
+            const hasMacumbaLeft = biomeName === 'nature' && Math.random() < 0.05 && templates.details.some(d => d.name === 'macumba');
+        
+            if (hasMacumbaLeft) {
+                const macumbaTemp = templates.details.find(d => d.name === 'macumba');
+                const group = new THREE.Group();
+                group.position.set(-0.6, 0.4, 0);
+
+                for (let j = 0; j < 3; j++) {
+                const pot = macumbaTemp.clone();
+                pot.scale.set(0.65, 0.65, 0.65);
+                
+                const offsetX = (j === 0) ? 0 : (j === 1 ? 0.25 : -0.25);
+                const offsetZ = (j === 0) ? -0.2 : (j === 1 ? 0.15 : 0.15);
+                pot.position.set(offsetX, 0, offsetZ);
+                
+                group.add(pot);
+            }
+            piece.leftDetail = group;
+            piece.left.add(piece.leftDetail);
             } else {
-                movePlayerRight(); // Metade direita
+                const allowedDetails = templates.details.filter(d => d.name !== 'macumba');
+                if (allowedDetails.length > 0) {
+                    const leftDetailTemp = allowedDetails[Math.floor(Math.random() * allowedDetails.length)];
+                    piece.leftDetail = leftDetailTemp.clone();
+                    piece.leftDetail.position.set(-0.6, 0.4, 0);
+                    piece.left.add(piece.leftDetail);
+                }
             }
         }
-    });
 
-    // SOLTAR O TOQUE OU O CLIQUE (Libera o freio automaticamente) [2]
-    gameWrapper.addEventListener('pointerup', () => {
-        if (activeBraking) {
-            activeBraking = false;
-            setBrakingState(false);
-        }
-    });
-
-    // Se o dedo arrastar ou o mouse sair da tela de jogo enquanto freia, libera o freio [2]
-    gameWrapper.addEventListener('pointerleave', () => {
-        if (activeBraking) {
-            activeBraking = false;
-            setBrakingState(false);
-        }
-    });
-
-    // ESCUTA DE PERDA DE FOCO: Desativa o freio caso o jogador mude de aba ou clique fora do jogo (Evita tecla presa!) [2]
-    window.addEventListener('blur', () => {
-        activeBraking = false;
-        setBrakingState(false);
-    });
-
-    // Conecta as ações dos botões do painel de Game Over
-    btnRestart.addEventListener('click', () => {
-        restartGame();
-    });
-
-    btnBackMenu.addEventListener('click', () => {
-        backToMenu();
-    });
-
-    // Conecta a ação de salvar o nome no ranking
-    btnSaveRecord.addEventListener('click', () => {
-        saveRecord();
-    });
-}
-
-function startGameSequence() {
-    // 1. Esconde Menu e Rodapé
-    mainMenu.classList.add('hidden');
-    footer.classList.add('hidden');
-    
-    // 2. Mostra a contagem regressiva
-    countdownLayer.classList.remove('hidden');
-    countdownText.innerText = "3";
-
-    // 3. Sequência de Tempo (setTimeout)
-    setTimeout(() => { countdownText.innerText = "2"; }, 1000);
-    setTimeout(() => { countdownText.innerText = "1"; }, 2000);
-    setTimeout(() => { 
-        countdownText.innerText = "Colete o máximo\nde doações!"; 
-        // Diminui o texto da frase para caber bem na tela
-        countdownText.classList.remove('text-9xl');
-        countdownText.classList.add('text-6xl', 'md:text-8xl');
-    }, 3000);
-    
-    // 4. Limpa a tela, esconde o blur suavemente e inicia os obstáculos
-    setTimeout(() => {
-        countdownLayer.classList.add('hidden');
-        
-        // Remove o efeito de vidro fosco suavemente
-        menuBackdrop.style.opacity = '0'; 
-        
-        setTimeout(() => {
-            menuBackdrop.classList.add('hidden'); 
-            hudLayer.classList.remove('hidden'); // Mostra os ícones de freio
-            speedometerLayer.classList.remove('hidden');
-
-            // --- ATIVA O GAMEPLAY ATIVO NA TELA ---
-            isPlaying = true;        // Libera comandos do jogador e freios
-            startObstacleSpawner();  // Começa a gerar os carros na pista
-            startBiomeTimer(); 
-            
-            
-            // --- INICIALIZAÇÃO DE PLACARES E ALIMENTOS (MOVIDO PARA O MOMENTO ATIVO!) ---
-            score = 0;
-            scoreText.innerText = "0 kg";
-            scoreLayer.classList.remove('hidden');       // Exibe o placar âmbar
-            toastLayer.classList.add('hidden');          // Garante que o toast inicie fechado
-            startItemSpawner();                          // Ativa o spawner dinâmico de alimentos
-            
-            console.log("Sinal Verde! Os caminhões estão na pista!");
-        }, 500); // Aguarda o meio segundo do Fade Out do desfoque
-        
-    }, 4500);
-}
-
-function gameLoop(time) {
-    requestAnimationFrame(gameLoop);
-    
-    // Calcula a variação de tempo real (Delta Time) e limita para evitar pulos caso trave [2]
-    const deltaTime = Math.min((time - lastTime) / 1000, 0.1); 
-    lastTime = time;
-
-    if (!isGameOver) {
-        updateWorld();
-        updateEntities(activeBraking, deltaTime); // <-- PASSA O DELTA TIME PARA A FÍSICA
-        
-        // --- DINÂMICA DO VELOCÍMETRO EM TEMPO REAL ---
-        if (isPlaying) {
-            const displaySpeed = Math.round((currentSpeed / 0.5) * 53 + 2);
-            speedText.innerText = `${displaySpeed} km/h`;
-        }
-    }
-
-    if (isPlaying && !isGameOver) {
-        if (checkCollisions()) {
-            triggerGameOver();
-        }
-        
-        // CHECA A COLETA DOS ITENS DE COMIDA A CADA FRAME
-        checkItemCollections(handleItemCollection);
-    }
-    
-    renderEngine(isPlaying);
-}
-
-window.onload = init;
-
-// Atualiza a opacidade do ícone de freio usado, deixando-o cinza
-function updateBrakeUI() {
-    // Como as cargas caem de 3 para 0, desativamos o ícone correspondente
-    // Carga 2 resta = apaga o ícone 3. Carga 1 resta = apaga o ícone 2. Carga 0 resta = apaga o ícone 1.
-    const iconIndex = brakeCharges + 1; 
-    const icon = document.getElementById(`brake-icon-${iconIndex}`);
-    if (icon) {
-        icon.classList.add('grayscale', 'opacity-30');
-    }
-}
-// Inicia o gerador de obstáculos a cada 2.5 segundos
-function startObstacleSpawner() {
-    if (spawnerInterval) clearInterval(spawnerInterval);
-
-    // Dispara o primeiro obstáculo após 2 segundos de jogo e repete a cada 2.5s
-    spawnerInterval = setInterval(() => {
-        spawnObstacle();
-    }, 2500); 
-}
-
-// Dispara o fluxo cinematográfico da colisão
-function triggerGameOver() {
-    isGameOver = true;
-    isPlaying = false;
-
-    if (biomeTimer) clearInterval(biomeTimer);
-    
-    // Para o temporizador de novos obstáculos imediatamente
-    if (spawnerInterval) clearInterval(spawnerInterval);
-
-    // 1. Dispara o Tremor de Tela na câmera
-    triggerCameraShake(1.5); 
-
-    // 2. Aguarda 2 segundos de Congelamento de Impacto (Hit Stop)
-    setTimeout(() => {
-        // Reativa a camada de desfoque suave (blur)
-        menuBackdrop.classList.remove('hidden');
-        menuBackdrop.style.opacity = '1';
-        
-        // Esconde o HUD de freios, velocímetro e placar âmbar
-        hudLayer.classList.add('hidden');
-        speedometerLayer.classList.add('hidden');
-        scoreLayer.classList.add('hidden'); // <-- ADICIONADO!
-        toastLayer.classList.add('hidden'); // <-- ADICIONADO!
-
-        // Limpa o timer de alimentos
-        if (itemTimeout) clearTimeout(itemTimeout);
-
-        // 4. Exibe o painel de resultados de Game Over (Opção B)
-        gameOverModal.classList.remove('hidden');
-        gameOverModal.classList.add('flex');
-        
-        // ESCOVA O PLACAR REAL DA PARTIDA NO MODAL!
-        gameOverScore.innerText = `${score} kg`; // <-- MUDADO! Escreve os kg reais coletados
-        checkAndShowRecordForm();
-    }, 2000);
-
-}
-
-// Reinicia a partida imediatamente sem passar pelo menu inicial
-function restartGame() {
-    gameOverModal.classList.add('hidden');
-    gameOverModal.classList.remove('flex');
-    menuBackdrop.classList.add('hidden');
-    if (biomeTimer) clearInterval(biomeTimer);
-    if (itemTimeout) clearTimeout(itemTimeout);
-    
-    // Reseta todas as variáveis de estado
-    isGameOver = false;
-    brakeCharges = 3;
-    activeBraking = false;
-    setBrakingState(false);
-    
-    // Restaura visualmente os 3 ícones de freio na tela
-    for (let i = 1; i <= 3; i++) {
-        const icon = document.getElementById(`brake-icon-${i}`);
-        if (icon) icon.classList.remove('grayscale', 'opacity-30');
-    }
-
-    // Limpa a tela e reseta o caminhão do jogador
-    resetEntities();
-
-    // Começa a contagem regressiva direto!
-    startGameSequence();
-}
-
-function backToMenu() {
-    gameOverModal.classList.add('hidden');
-    gameOverModal.classList.remove('flex');
-    if (biomeTimer) clearInterval(biomeTimer);
-    if (itemTimeout) clearTimeout(itemTimeout);
-    scoreLayer.classList.add('hidden'); // Oculta o placar âmbar
-    
-    isGameOver = false;
-    isPlaying = false;
-    brakeCharges = 3;
-    activeBraking = false;
-    setBrakingState(false);
-
-    // Oculta o velocímetro ao retornar para o menu inicial
-    speedometerLayer.classList.add('hidden');
-
-    for (let i = 1; i <= 3; i++) {
-        const icon = document.getElementById(`brake-icon-${i}`);
-        if (icon) icon.classList.remove('grayscale', 'opacity-30');
-    }
-
-    resetEntities();
-
-    // Reexibe o Menu Principal e o Rodapé por trás do vidro fosco [1]
-    mainMenu.classList.remove('hidden');
-    footer.classList.remove('hidden');
-    menuBackdrop.style.opacity = '1';
-}
-// Dispara o gerador de alimentos com tempos variáveis sem padrão (entre 1 e 2 segundos)
-function startItemSpawner() {
-    if (itemTimeout) clearTimeout(itemTimeout);
-
-    function scheduleNextItem() {
-        if (!isPlaying || isGameOver) return;
-        const randomDelay = Math.random() * 1000 + 2500; // Sorteia entre 1000ms e 2000ms
-        itemTimeout = setTimeout(() => {
-            spawnItem();
-            scheduleNextItem(); // Recursivamente agenda o próximo spawn de forma dinâmica!
-        }, randomDelay);
-    }
-    
-    scheduleNextItem();
-}
-
-// Processa a pontuação, o texto flutuante e os alertas
-function handleItemCollection(item, itemX) {
-    // 1. Atualiza a pontuação de quilos
-    score += item.value;
-    if (score < 0) score = 0; // Impede que o caminhão fique com kg negativos
-    scoreText.innerText = `${score} kg`;
-
-    // 2. Dispara o texto 3D flutuante subindo na pista
-    triggerFloatingText(item.value, itemX);
-
-    // 3. Se for uma coleta proibida, exibe o balão de alerta (Toast) [3]
-    if (!item.isHealthy) {
-        triggerToast(item.value, item.msg);
-    }
-}
-
-// Gera e anima o balão de texto flutuante exatamente no local de colisão
-function triggerFloatingText(value, xPos) {
-    const gameWrapper = document.getElementById('game-wrapper');
-    if (!gameWrapper) return;
-
-    const textDiv = document.createElement('div');
-    textDiv.className = `absolute bottom-[28%] font-[Bangers] text-4xl tracking-wide z-30 pointer-events-none transition-all duration-700 transform translate-y-0 opacity-100`;
-    
-    // Alinha a coluna horizontal de surgimento do texto baseado na pista de coleta [1]
-    let leftPercent = "50%";
-    if (xPos > 2) leftPercent = "28%";
-    else if (xPos < -5) leftPercent = "72%";
-    textDiv.style.left = leftPercent;
-    textDiv.style.transform = "translateX(-50%)";
-
-    if (value > 0) {
-        textDiv.innerText = `+${value} kg`;
-        textDiv.classList.add('text-green-400', 'drop-shadow-[0_4px_6px_rgba(0,0,0,0.6)]');
-    } else {
-        textDiv.innerText = `${value} kg`;
-        textDiv.classList.add('text-red-500', 'drop-shadow-[0_4px_6px_rgba(0,0,0,0.6)]');
-    }
-
-    gameWrapper.appendChild(textDiv);
-
-    // Animação CSS subindo e sumindo
-    setTimeout(() => {
-        textDiv.style.transform = "translate(-50%, -100px)";
-        textDiv.style.opacity = "0";
-    }, 50);
-
-    // Desmonta o elemento do DOM após a animação acabar
-    setTimeout(() => {
-        textDiv.remove();
-    }, 800);
-}
-
-// Gerencia a entrada suave e o fechamento do Toast Notification de alimentos proibidos
-function triggerToast(penalty, msg) {
-    if (toastTimeout) clearTimeout(toastTimeout);
-
-    // Se for neutral (Mesa 1994), mostra apenas o texto, senão mostra a penalidade [3]
-    const penaltyText = penalty === 0 ? "" : `${penalty} kg | `;
-    toastText.innerText = `${penaltyText}${msg}`;
-
-    // Mostra o balão e aciona a transição do Tailwind (escala e opacidade)
-    toastLayer.classList.remove('hidden');
-    setTimeout(() => {
-        toastLayer.classList.remove('scale-95', 'opacity-0');
-        toastLayer.classList.add('scale-100', 'opacity-100');
-    }, 10);
-
-    // Oculta suavemente após 2.5 segundos
-    toastTimeout = setTimeout(() => {
-        toastLayer.classList.remove('scale-100', 'opacity-100');
-        toastLayer.classList.add('scale-95', 'opacity-0');
-        setTimeout(() => {
-            toastLayer.classList.add('hidden');
-        }, 300);
-    }, 2500);
-}
-// Atualiza a lista do ranking HTML com os dados reais salvos no LocalStorage [1]
-function updateLeaderboardUI() {
-    const rankingList = document.getElementById('ranking-list');
-    if (!rankingList) return;
-
-    rankingList.innerHTML = ''; // Limpa os registros antigos da tela
-
-    // Se o ranking estiver totalmente em branco, mostra uma mensagem elegante [1]
-    if (leaderboard.length === 0) {
-        rankingList.innerHTML = `<li class="text-center text-slate-400 italic py-6 text-sm">Nenhum recorde registrado ainda. Seja o primeiro a pontuar!</li>`;
-        return;
-    }
-
-    // Renderiza o Top 10 na tela
-    leaderboard.forEach((entry, index) => {
-        const li = document.createElement('li');
-        li.className = "flex justify-between border-b border-white/10 pb-2 text-sm md:text-base";
-        
-        // Destaca o TOP 3 com medalhas de ouro, prata e bronze!
-        let positionIndicator = `${index + 1}. `;
-        if (index === 0) positionIndicator = "🥇 ";
-        else if (index === 1) positionIndicator = "🥈 ";
-        else if (index === 2) positionIndicator = "🥉 ";
-
-        li.innerHTML = `<span>${positionIndicator}${entry.name}</span><span class="text-green-400 font-bold">${entry.score} kg</span>`;
-        rankingList.appendChild(li);
-    });
-}
-
-// Checa se o jogador acumulou pontos suficientes para entrar no Top 10 [1]
-function checkAndShowRecordForm() {
-    // Se não fez pontos ou fez 0, não qualifica para recorde
-    if (score <= 0) {
-        recordForm.classList.add('hidden');
-        recordForm.classList.remove('flex');
-        return;
-    }
-
-    // Qualifica se a lista tiver menos de 10 nomes ou se os kg atuais forem maiores que o último colocado
-    const isNewRecord = leaderboard.length < 10 || score > leaderboard[leaderboard.length - 1].score;
-
-    if (isNewRecord) {
-        recordForm.classList.remove('hidden');
-        recordForm.classList.add('flex');
-        playerNameInput.value = ''; // Limpa o campo para o novo nome
-    } else {
-        recordForm.classList.add('hidden');
-        recordForm.classList.remove('flex');
-    }
-}
-
-// Salva o nome e os kg no banco de dados local do dispositivo [1]
-function saveRecord() {
-    const name = playerNameInput.value.trim().toUpperCase();
-    if (!name) {
-        alert("Por favor, digite seu nome!");
-        return;
-    }
-
-    // Adiciona a nova pontuação na lista
-    leaderboard.push({ name: name, score: score });
-
-    // Ordena do maior para o menor (ordem decrescente)
-    leaderboard.sort((a, b) => b.score - a.score);
-
-    // Limita a lista estritamente aos 10 melhores
-    leaderboard = leaderboard.slice(0, 10);
-
-    // Salva a lista convertida em texto de forma permanente no navegador [1]
-    localStorage.setItem('mesarun_ranking', JSON.stringify(leaderboard));
-
-    // Esconde o formulário de recorde de forma suave
-    recordForm.classList.remove('flex');
-    recordForm.classList.add('hidden');
-
-    updateLeaderboardUI(); // Atualiza a lista interna
-    alert("Recorde gravado com sucesso no ranking local!");
-}
-
-// Inicia o cronômetro para mudar de bioma a cada 60 segundos de partida [2]
-function startBiomeTimer() {
-    if (biomeTimer) clearInterval(biomeTimer);
-    
-    currentBiomeIndex = 0;
-    isFlipped = false;
-    setCameraFlippedState(false);
-    updateLaneOffsets(false);
-    setActiveBiome('nature');
-
-    // Dispara a transição a cada 60 segundos [2]
-    biomeTimer = setInterval(() => {
-        if (isPlaying && !isGameOver) {
-            triggerBiomeTransition();
-        }
-    }, 60000); 
-}
-
-// Orquestra a transição cinematográfica de fase com curva, luzes e inversão de faixas [2]
-function triggerBiomeTransition() {
-    // 1. Pausa os temporizadores de spawn imediatamente (A pista esvazia por 1.5s de segurança) [2]
-    if (spawnerInterval) clearInterval(spawnerInterval);
-    if (itemTimeout) clearTimeout(itemTimeout);
-
-    // 2. Faz o caminhão dobrar sutilmente para o lado da nova via [2]
-    setTruckTransitionTurn(isFlipped ? -0.20 : 0.20);
-
-    // 3. Após 1.5 segundos de pista limpa, inverte a diagonal da câmera e muda o bioma [2]
-    setTimeout(() => {
-        isFlipped = !isFlipped;
-        setCameraFlippedState(isFlipped);   // Inverte a câmera no engine.js
-        updateLaneOffsets(isFlipped);       // Inverte as coordenadas 3D das faixas [2]
-
-        // Avança de fase [1]
-        currentBiomeIndex = (currentBiomeIndex + 1) % BIOMES_LIST.length;
-        setActiveBiome(BIOMES_LIST[currentBiomeIndex]); // Ativa a nova iluminação e cor de chão no world.js [2]
-
-        // 4. Após mais 1.5 segundos, endireita o caminhão e retoma o tráfego [2]
-        setTimeout(() => {
-            setTruckTransitionTurn(0); // Endireita o caminhão
-            
-            if (isPlaying && !isGameOver) {
-                startObstacleSpawner();
-                startItemSpawner();
+        // --- CALÇADA DIREITA ---
+        const hasMacumbaRight = biomeName === 'nature' && Math.random() < 0.05 && templates.details.some(d => d.name === 'macumba');
+
+        if (hasMacumbaRight) {
+            const macumbaTemp = templates.details.find(d => d.name === 'macumba');
+            const group = new THREE.Group();
+            group.position.set(-0.6, 0.4, 0);
+
+            for (let j = 0; j < 3; j++) {
+                const pot = macumbaTemp.clone();
+                pot.scale.set(0.65, 0.65, 0.65);
+                
+                const offsetX = (j === 0) ? 0 : (j === 1 ? 0.25 : -0.25);
+                const offsetZ = (j === 0) ? -0.2 : (j === 1 ? 0.15 : 0.15);
+                pot.position.set(offsetX, 0, offsetZ);
+                
+                group.add(pot);
             }
-        }, 1500);
+            piece.rightDetail = group;
+            piece.right.add(piece.rightDetail);
+        } else {
+            const allowedDetails = templates.details.filter(d => d.name !== 'macumba');
+            if (allowedDetails.length > 0) {
+                const rightDetailTemp = allowedDetails[Math.floor(Math.random() * allowedDetails.length)];
+                piece.rightDetail = rightDetailTemp.clone();
+                piece.rightDetail.position.set(-0.6, 0.4, 0);
+                piece.right.add(piece.rightDetail);
+            }
+        }
+    }
+}
 
-    }, 1500);
+// Reseta as posições Z da pista de forma limpa e re-decora tudo com a Floresta (nature) [1]
+export function resetWorldScenery() {
+    if (!roadGroup) return;
+
+    activeBiome = 'nature'; // Força o bioma de volta para a Floresta
+
+    // 1. Reseta as posições iniciais de grid das linhas pontilhadas [1]
+    let lineIndex = 0;
+    const posicaoDaLinha = 3.5; 
+    const lineXPositions = [-posicaoDaLinha, posicaoDaLinha]; 
+    
+    for (let x of lineXPositions) {
+        for (let z = -ROAD_LENGTH / 2; z < ROAD_LENGTH / 2; z += 6) {
+            if (dashedLines[lineIndex]) {
+                dashedLines[lineIndex].position.set(x, ROAD_HEIGHT, z);
+            }
+            lineIndex++;
+        }
+    }
+
+    // 2. Reseta as calçadas para as posições iniciais de grid e as re-decora com árvores [1, 2]
+    roadPieces.forEach((piece, i) => {
+        const zPos = (i * PIECE_LENGTH) - (ROAD_LENGTH / 2);
+        piece.left.position.z = zPos;
+        piece.right.position.z = zPos;
+
+        // Força a re-decoração imediata de todas as calçadas com a Floresta inicial [1, 2]
+        decoratePiece(piece, 'nature', i);
+    });
+}
+
+// Cria uma marca de pneu procedural na posição X fornecida
+export function addTireMark(x) {
+    if (!roadGroup) return;
+
+    // Criamos um plano escuro, fino e translúcido para simular a borracha queimada
+    const geometry = new THREE.PlaneGeometry(0.3, 1.2); 
+    const material = new THREE.MeshBasicMaterial({
+        color: 0x111111,
+        transparent: true,
+        opacity: 0.25,
+        depthWrite: false // Evita problemas de renderização e sobreposição (z-fighting)
+    });
+    
+    const mark = new THREE.Mesh(geometry, material);
+    mark.rotation.x = -Math.PI / 2; // Deita o plano no chão
+    
+    // Posiciona logo atrás da roda traseira. A rua está em Y: 2.4, colocamos em 2.41 para não piscar
+    mark.position.set(x, 2.41, 0); 
+    
+    roadGroup.add(mark);
+    tireMarks.push(mark);
+}
+
+// Atualiza a posição dos rastros acompanhando o movimento da rua e os limpa da memória
+function updateTireMarks() {
+    for (let i = tireMarks.length - 1; i >= 0; i--) {
+        const mark = tireMarks[i];
+        mark.position.z -= currentSpeed;
+
+        // Se o rastro passou da tela, destrói e libera memória
+        if (mark.position.z < -ROAD_LENGTH / 2) {
+            roadGroup.remove(mark);
+            mark.geometry.dispose();
+            mark.material.dispose();
+            tireMarks.splice(i, 1);
+        }
+    }
 }
