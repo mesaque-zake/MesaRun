@@ -27,7 +27,7 @@ let isGameOver = false;     // Controla o congelamento (Hit Stop) da tela
 let isPlaying = false; 
 let brakeCharges = 3;       // Limite de 3 cargas por partida
 let activeBraking = false;  // Monitora se o botão de freio está pressionado agora
-let spawnerInterval = null; // Armazena o timer do spawn para podermos parar no game over
+let spawnerTimeout = null; // Armazena o timer do spawn para podermos parar no game over
 
 // Elementos da UI de Game Over
 const gameOverModal = document.getElementById('game-over-modal');
@@ -279,14 +279,23 @@ function updateBrakeUI() {
         icon.classList.add('grayscale', 'opacity-30');
     }
 }
-// Inicia o gerador de obstáculos a cada 2.5 segundos
+// Inicia o gerador de obstáculos de forma dinâmica e sem padrões repetitivos [1, 2]
 function startObstacleSpawner() {
-    if (spawnerInterval) clearInterval(spawnerInterval);
+    if (spawnerTimeout) clearTimeout(spawnerTimeout);
 
-    // Dispara o primeiro obstáculo após 2 segundos de jogo e repete a cada 2.5s
-    spawnerInterval = setInterval(() => {
-        spawnObstacle();
-    }, 2500); 
+    function scheduleNextObstacle() {
+        if (!isPlaying || isGameOver) return;
+        
+        // Sorteia um tempo aleatório entre 1.8s e 2.8s (aumenta o tráfego de forma orgânica) [1]
+        const randomDelay = Math.random() * 1000 + 1800; 
+        
+        spawnerTimeout = setTimeout(() => {
+            spawnObstacle();
+            scheduleNextObstacle(); // Agenda de forma recursiva o próximo veículo [1]
+        }, randomDelay);
+    }
+
+    scheduleNextObstacle();
 }
 
 // Dispara o fluxo cinematográfico da colisão
@@ -297,7 +306,7 @@ function triggerGameOver() {
     if (biomeTimer) clearInterval(biomeTimer);
     
     // Para o temporizador de novos obstáculos imediatamente
-    if (spawnerInterval) clearInterval(spawnerInterval);
+    if (spawnerTimeout) clearTimeout(spawnerTimeout);
 
     // 1. Dispara o Tremor de Tela na câmera
     triggerCameraShake(1.5); 
@@ -576,7 +585,7 @@ function startBiomeTimer() {
 // Orquestra a transição cinematográfica de fase com curva, luzes e inversão de faixas [2]
 function triggerBiomeTransition() {
     // 1. Pausa os temporizadores de spawn imediatamente (A pista esvazia por 1.5s de segurança) [2]
-    if (spawnerInterval) clearInterval(spawnerInterval);
+    if (spawnerTimeout) clearTimeout(spawnerTimeout);
     if (itemTimeout) clearTimeout(itemTimeout);
 
     // 2. Faz o caminhão dobrar sutilmente para o lado da nova via [2]
