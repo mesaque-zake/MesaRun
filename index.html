@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MesaRun!</title>
     
-    <!-- Tailwind CSS (via CDN para o Front-end 0800) -->
+    <!-- Tailwind CSS (via CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Fontes do Google -->
@@ -22,138 +22,205 @@
         }
     </script>
 </head>
-<body class="bg-gray-900 text-white overflow-hidden touch-none flex items-center justify-center min-h-screen">
+<body class="bg-gray-900 text-white overflow-hidden touch-none flex items-center justify-center min-h-screen selection:bg-transparent">
     
-    <!-- Wrapper principal para limitar o aspecto em telas largas (aspecto max 1:1) [1] -->
-    <div id="game-wrapper" class="w-full max-w-[100vh] h-screen relative overflow-hidden bg-gray-950 shadow-2xl">
+    <!-- Wrapper principal para limitar o aspecto em telas largas (aspecto max 1:1) -->
+    <div id="game-wrapper" class="w-full max-w-[100vh] h-screen relative overflow-hidden bg-gray-950 shadow-2xl border-x border-white/5">
         
         <!-- Interface (Menus e Pontuação - Fica por cima do jogo) -->
-        <div id="ui-layer" class="absolute inset-0 z-10">
+        <div id="ui-layer" class="absolute inset-0 z-10 select-none flex items-center justify-center">
         
             <!-- Camada de Fundo com Blur para o Menu -->
-            <div id="menu-backdrop" class="absolute inset-0 bg-black/40 backdrop-blur-md flex flex-col items-center justify-center transition-opacity duration-500 z-20">
+            <div id="menu-backdrop" class="absolute inset-0 bg-black/55 backdrop-blur-md flex flex-col items-center justify-center transition-opacity duration-500 z-20">
                 
-                <!-- Logo e Botões Principais -->
-                <div id="main-menu" class="flex flex-col items-center gap-4 md:gap-6">
-                    <!-- Logo Sesc (Reposicionado acima do título e maior) -->
-                    <img src="logo.png" alt="Logo Sesc" class="h-16 md:h-20 object-contain drop-shadow-md mb-2">
-
-                    <!-- Título MesaRun! usando a fonte Bangers -->
-                    <h1 class="font-[Bangers] text-7xl md:text-8xl text-white tracking-widest drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] mb-2">MesaRun!</h1>
+                <!-- Menu Principal (Compactado e Otimizado para Mobile) -->
+                <div id="main-menu" class="flex flex-col items-center w-full max-w-[310px] px-4 gap-2 z-30 justify-center">
                     
-                    <button id="btn-play" class="bg-green-500 hover:bg-green-400 text-white font-[Bangers] text-5xl tracking-wide py-3 px-16 rounded-2xl shadow-[0_6px_0_#166534] active:shadow-[0_0px_0_#166534] active:translate-y-[6px] transition-all">
+                    <!-- Logo Sesc -->
+                    <img src="logo.png" alt="Logo Sesc" class="h-10 object-contain drop-shadow-md">
+
+                    <!-- Título MesaRun! -->
+                    <h1 class="font-[Bangers] text-5xl text-white tracking-widest drop-shadow-[0_3px_0_#0f172a] mb-1">MesaRun!</h1>
+                    
+                    <!-- Léo e Lucas posicionados precisamente ACIMA do Play (E somem ao iniciar) -->
+                    <img src="assets/sprite/cartoon/home.png" alt="Léo e Lucas" class="h-32 md:h-36 object-contain pointer-events-none mb-1 select-none">
+                    
+                    <!-- Botão Play Estilo Gamer -->
+                    <button id="btn-play" class="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-[Bangers] text-3xl tracking-wide py-2 rounded-2xl border-4 border-slate-950 shadow-[4px_4px_0px_#020617] active:translate-y-[4px] active:shadow-none transition-all duration-100">
                         PLAY
                     </button>
                     
-                    <button id="btn-ranking" class="bg-slate-700 hover:bg-slate-600 text-white font-bold text-xl py-3 px-8 rounded-xl shadow-[0_4px_0_#334155] active:shadow-[0_0px_0_#334155] active:translate-y-[4px] transition-all mt-4">
-                        🏆 TOP 10 RANKING
-                    </button>
+                    <!-- Botões Auxiliares Lado a Lado (Melhoria de espaço mobile) -->
+                    <div class="grid grid-cols-2 gap-3 w-full">
+                        <button id="btn-ranking" class="bg-amber-500 hover:bg-amber-400 text-white font-bold text-xs py-2 rounded-xl border-2 border-slate-950 shadow-[3px_3px_0px_#020617] active:translate-y-[3px] active:shadow-none transition-all duration-100">
+                            🏆 RANKING
+                        </button>
+                        <button id="btn-settings" class="bg-slate-600 hover:bg-slate-500 text-white font-bold text-xs py-2 rounded-xl border-2 border-slate-950 shadow-[3px_3px_0px_#020617] active:translate-y-[3px] active:shadow-none transition-all duration-100">
+                            ⚙️ AJUSTES
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Modal do Ranking (Vidro Fosco - Escondido por padrão) -->
-                <div id="ranking-modal" class="hidden flex-col items-center w-11/12 max-w-md bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-2xl">
-                    <h2 class="font-[Bangers] text-5xl text-white tracking-wide mb-6">🏆 TOP 10</h2>
+                <!-- Modal do Ranking (Compactado e Ancorado) -->
+                <div id="ranking-modal" class="hidden flex-col items-center w-[290px] bg-slate-900/95 border-4 border-slate-950 rounded-3xl p-5 shadow-2xl relative z-40 pb-[15vh]">
+                    <h2 class="font-[Bangers] text-4xl text-white tracking-wide mb-3">🏆 TOP 10</h2>
                     
-                    <!-- Lista do Ranking (Dinamizada via LocalStorage) [1] -->
-                    <ul id="ranking-list" class="w-full text-white font-medium space-y-3 mb-8 max-h-60 overflow-y-auto pr-1">
-                        <!-- Será preenchida dinamicamente pelo JavaScript -->
+                    <ul id="ranking-list" class="w-full text-white font-semibold space-y-1.5 mb-4 max-h-36 overflow-y-auto pr-1">
+                        <!-- Preenchido dinamicamente -->
                     </ul>
                     
-                    <button id="btn-close-ranking" class="bg-red-500 hover:bg-red-400 text-white font-bold py-3 px-10 rounded-xl shadow-[0_4px_0_#7f1d1d] active:shadow-[0_0px_0_#7f1d1d] active:translate-y-[4px] transition-all">
+                    <button id="btn-close-ranking" class="w-full bg-red-500 hover:bg-red-400 text-white font-bold py-2 rounded-xl border-2 border-slate-950 shadow-[3px_3px_0px_#020617] active:translate-y-[3px] active:shadow-none transition-all duration-100 text-sm">
                         VOLTAR
                     </button>
+
+                    <!-- Lucas assentado perfeitamente no rodapé do card -->
+                    <img src="assets/sprite/cartoon/ranking.png" alt="Lucas troféu" class="absolute bottom-0 right-2 h-[12vh] object-contain pointer-events-none select-none align-bottom">
                 </div>
 
-                <!-- Seu Rodapé (Assinatura estritamente fixada e centralizada no rodapé da moldura) [1] -->
-                <div id="footer" class="absolute bottom-6 left-0 right-0 flex flex-col items-center pointer-events-none">
+                <!-- Seu Rodapé -->
+                <div id="footer" class="absolute bottom-2 left-0 right-0 flex flex-col items-center pointer-events-none z-10">
                     <div id="signature" class="w-full text-center">
-                        <p class="text-xs md:text-sm font-medium text-slate-300">
-                            Powered with <span class="text-[#e80523] text-sm md:text-base leading-none drop-shadow-md">&#10084;</span> by <strong class="text-white drop-shadow-md">Mesaque</strong>
+                        <p class="text-[10px] font-semibold text-slate-500">
+                            Powered with <span class="text-red-500 text-xs">&#10084;</span> by <strong class="text-slate-300">Mesaque</strong>
                         </p>
                     </div>
                 </div>
             </div>
 
-            <!-- Tela de Contagem Regressiva (Escondida por padrão) -->
-            <div id="countdown-layer" class="hidden absolute inset-0 flex items-center justify-center pointer-events-none z-30">
-                <h1 id="countdown-text" class="font-[Bangers] text-9xl text-white drop-shadow-[0_5px_15px_rgba(0,0,0,0.8)] text-center leading-tight">3</h1>
+            <!-- Tela de Contagem Regressiva (Mantida oculta visualmente, mas operando na lógica) -->
+            <div id="countdown-layer" class="hidden absolute inset-0 pointer-events-none z-30 opacity-0">
+                <h1 id="countdown-text" class="hidden">3</h1>
             </div>
 
-            <!-- HUD de Corrida (Ícones de Freio) - Movido para o canto inferior direito -->
-            <div id="hud-layer" class="hidden absolute bottom-6 right-6 flex gap-3 z-30">
-                <img id="brake-icon-1" src="assets/sprite/road/freio.png" alt="Freio 1" class="w-11 h-11 object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)] transition-all duration-300">
-                <img id="brake-icon-2" src="assets/sprite/road/freio.png" alt="Freio 2" class="w-11 h-11 object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)] transition-all duration-300">
-                <img id="brake-icon-3" src="assets/sprite/road/freio.png" alt="Freio 3" class="w-11 h-11 object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)] transition-all duration-300">
-            </div>
-
-                <!-- Velocímetro HUD (Canto Superior Esquerdo - Esmeralda e Branco) -->
-             <div id="speedometer-layer" class="hidden absolute top-6 left-6 bg-emerald-700 rounded-2xl py-2 px-5 flex items-center gap-3 shadow-lg z-30 transition-all">
-                 <!-- Ícone de Painel de Velocidade (SVG com traço branco) -->
-                 <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 stroke-white stroke-[2] fill-none" viewBox="0 0 24 24">
-                     <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                     <path d="M5.636 19.364a9 9 0 1 1 12.728 0" />
-                     <path d="M16 9l-4 4" />
-                     <circle cx="12" cy="13" r="1" />
-                 </svg>
-                 <span id="speed-text" class="font-[Bangers] text-3xl text-white tracking-wide">55 km/h</span>
-             </div>
-
-             <!-- Placar de Doações Acumuladas (HUD Canto Superior Direito - Âmbar) [1] -->
-             <div id="score-layer" class="hidden absolute top-6 right-6 bg-amber-600 rounded-2xl py-2 px-5 flex items-center gap-3 shadow-lg z-30 transition-all">
-                 <!-- Ícone de Cesta/Balança de Alimentos (SVG Branco) -->
-                 <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 stroke-white stroke-[2] fill-none" viewBox="0 0 24 24">
-                     <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                     <path d="M12 3l8 4.5v9l-8 4.5l-8 -4.5v-9z" />
-                     <path d="M12 12l8 -4.5" />
-                     <path d="M12 12v9" />
-                     <path d="M12 12l-8 -4.5" />
-                     <path d="M12 12l0 -9" />
-                 </svg>
-                 <span id="score-text" class="font-[Bangers] text-3xl text-white tracking-wide">0 kg</span>
-             </div>
-
-             <!-- Balão de Alerta de Comidas Proibidas (Toast HUD) [3] -->
-             <div id="toast-layer" class="hidden absolute top-24 left-1/2 -translate-x-1/2 bg-red-600 border border-red-500 rounded-2xl py-3 px-6 flex items-center gap-3 shadow-2xl z-30 transition-all duration-300 transform scale-95 opacity-0">
-                 <span id="toast-text" class="font-bold text-xs md:text-sm text-white tracking-wide text-center">MENSAGEM DE ALERTA</span>
-             </div>
-
-            <!-- Modal de Game Over (Fica oculto por padrão) -->
-            <div id="game-over-modal" class="hidden flex-col items-center w-11/12 max-w-md bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-2xl z-30 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                <h2 class="font-[Bangers] text-5xl text-white tracking-wide mb-2">💥 BATIDA!</h2>
-                <p class="text-slate-300 text-sm mb-6 text-center">O caminhão colidiu com um obstáculo!</p>
+            <!-- HUD SUPERIOR COMPACTO E UNIFICADO -->
+            <div id="top-hud-container" class="absolute top-2 left-2 right-2 md:top-4 md:left-4 md:right-4 flex items-center justify-between gap-2 z-30 pointer-events-none">
                 
-                <!-- Placar de quilos coletados -->
-                <div class="text-center mb-8">
-                    <p class="text-xs text-slate-400 uppercase tracking-widest font-bold mb-1">Doações Coletadas</p>
-                    <span id="game-over-score" class="font-[Bangers] text-6xl text-green-400 tracking-wide">0 kg</span>
+                <!-- Velocímetro HUD -->
+                <div id="speedometer-layer" class="hidden bg-slate-950/85 backdrop-blur-md rounded-xl py-1 px-3 flex items-center gap-1.5 border border-white/5 shadow-lg pointer-events-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 stroke-emerald-400 stroke-[2.5] fill-none" viewBox="0 0 24 24">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                        <path d="M5.636 19.364a9 9 0 1 1 12.728 0" />
+                        <path d="M16 9l-4 4" />
+                    </svg>
+                    <span id="speed-text" class="font-[Bangers] text-lg md:text-xl text-white tracking-wide">0 km/h</span>
                 </div>
 
-                <!-- Formulário condicional para salvar recorde (oculto por padrão) -->
-                <div id="record-form" class="hidden w-full flex-col gap-3 mb-6">
-                    <p class="text-sm text-green-300 font-semibold text-center">🏆 Novo Recorde! Digite seu nome:</p>
-                    <input id="player-name-input" type="text" maxlength="15" placeholder="Seu Nome" class="w-full bg-black/40 border border-white/20 rounded-xl py-3 px-4 text-white text-center font-bold focus:outline-none focus:border-green-500 transition-all">
-                    <button id="btn-save-record" class="w-full bg-green-500 hover:bg-green-400 text-white font-bold py-3 rounded-xl shadow-[0_4px_0_#166534] active:shadow-[0_0px_0_#166534] active:translate-y-[4px] transition-all">
-                        SALVAR NO RANKING
+                <!-- Placar de Doações -->
+                <div id="score-layer" class="hidden bg-slate-950/85 backdrop-blur-md rounded-xl py-1 px-3 flex items-center gap-1.5 border border-white/5 shadow-lg pointer-events-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 stroke-amber-400 stroke-[2.5] fill-none" viewBox="0 0 24 24">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                        <path d="M12 3l8 4.5v9l-8 4.5l-8 -4.5v-9z" />
+                        <path d="M12 12l8 -4.5" />
+                    </svg>
+                    <span id="score-text" class="font-[Bangers] text-lg md:text-xl text-white tracking-wide">0 kg</span>
+                </div>
+
+                <!-- Indicador de Freios -->
+                <div id="hud-layer" class="hidden bg-slate-950/85 backdrop-blur-md rounded-xl py-1 px-2.5 flex items-center gap-1.5 border border-white/5 shadow-lg pointer-events-auto">
+                    <img id="brake-icon-1" src="assets/sprite/road/freio.png" alt="B1" class="w-5 h-5 object-contain transition-all duration-300">
+                    <img id="brake-icon-2" src="assets/sprite/road/freio.png" alt="B2" class="w-5 h-5 object-contain transition-all duration-300">
+                    <img id="brake-icon-3" src="assets/sprite/road/freio.png" alt="B3" class="w-5 h-5 object-contain transition-all duration-300">
+                </div>
+
+            </div>
+
+            <!-- NOVOS ALERTAS DE PISTA "!" (Gamer Style) -->
+            <div id="warning-siren-0" class="hidden absolute left-[32%] top-[45%] -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none animate-bounce">
+                <div class="flex items-center justify-center bg-red-600 text-white font-black text-lg rounded-full w-7 h-7 border-2 border-slate-950 shadow-md">!</div>
+            </div>
+            <div id="warning-siren-1" class="hidden absolute left-[50%] top-[45%] -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none animate-bounce">
+                <div class="flex items-center justify-center bg-red-600 text-white font-black text-lg rounded-full w-7 h-7 border-2 border-slate-950 shadow-md">!</div>
+            </div>
+            <div id="warning-siren-2" class="hidden absolute left-[68%] top-[45%] -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none animate-bounce">
+                <div class="flex items-center justify-center bg-red-600 text-white font-black text-lg rounded-full w-7 h-7 border-2 border-slate-950 shadow-md">!</div>
+            </div>
+
+            <!-- DIÁLOGO CARTOON (Toast - Ancorado Perfeitamente sem Flutuação) -->
+            <div id="toast-layer" class="hidden absolute bottom-0 left-0 right-0 h-[22vh] z-30 pointer-events-none transition-all duration-300 transform translate-y-10 opacity-0 flex items-end justify-between px-3 pb-1">
+                
+                <!-- Personagem de Diálogo (Ancorado no rodapé) -->
+                <div class="w-[30%] h-full flex items-end justify-start">
+                    <img id="toast-char-img" src="assets/sprite/cartoon/lucas1.png" alt="Voluntário Sesc" class="h-full object-contain pointer-events-auto select-none align-bottom">
+                </div>
+
+                <!-- Balão de Fala Cartoon -->
+                <div class="w-[70%] mb-4 flex justify-start pointer-events-auto">
+                    <div class="bg-white text-slate-900 border-4 border-slate-950 rounded-2xl py-2 px-3 shadow-[3px_3px_0px_#020617] relative max-w-[200px]">
+                        <!-- Seta do balão de fala -->
+                        <div class="absolute bottom-3 -left-[14px] w-0 h-0 border-t-[8px] border-t-transparent border-r-[12px] border-r-slate-950 border-b-[8px] border-b-transparent"></div>
+                        <div class="absolute bottom-[17px] -left-[8px] w-0 h-0 border-t-[6px] border-t-transparent border-r-[10px] border-r-white border-b-[6px] border-b-transparent"></div>
+                        
+                        <p id="toast-text" class="font-bold text-[11px] leading-tight tracking-wide"></p>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Modal de Game Over (Compactado e Ancorado) -->
+            <div id="game-over-modal" class="hidden flex-col items-center w-[290px] bg-slate-900/95 border-4 border-slate-950 rounded-3xl p-5 shadow-2xl z-30 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pb-[14vh]">
+                <h2 class="font-[Bangers] text-4xl text-white tracking-wide mb-1.5">💥 BATIDA!</h2>
+                <p class="text-slate-300 text-xs mb-3 text-center">O caminhão colidiu com um obstáculo!</p>
+                
+                <div class="text-center mb-3 bg-slate-950/40 w-full py-2 rounded-2xl border border-white/5">
+                    <p class="text-[9px] text-slate-400 uppercase tracking-widest font-bold mb-0.5">Doações Coletadas</p>
+                    <span id="game-over-score" class="font-[Bangers] text-4xl text-emerald-400 tracking-wide">0 kg</span>
+                </div>
+
+                <!-- Form Recorde -->
+                <div id="record-form" class="hidden w-full flex-col gap-1.5 mb-3">
+                    <p class="text-[10px] text-emerald-400 font-bold text-center">🏆 Novo Recorde! Digite seu nome:</p>
+                    <input id="player-name-input" type="text" maxlength="15" placeholder="Seu Nome" class="w-full bg-slate-950 border border-slate-700 rounded-lg py-1.5 px-2 text-white text-center font-bold focus:outline-none focus:border-emerald-500 transition-all text-xs">
+                    <button id="btn-save-record" class="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-bold py-1.5 rounded-lg border border-slate-950 shadow-[1px_1px_0px_#020617] active:translate-y-[1px] active:shadow-none transition-all text-xs">
+                        SALVAR
                     </button>
                 </div>
 
-                <!-- Botões de ação -->
-                <div class="flex flex-col gap-4 w-full">
-                    <button id="btn-restart" class="w-full bg-slate-100 hover:bg-white text-slate-900 font-bold py-3 rounded-xl shadow-[0_4px_0_#94a3b8] active:shadow-[0_0px_0_#94a3b8] active:translate-y-[4px] transition-all">
+                <!-- Ações -->
+                <div class="flex flex-col gap-2 w-full">
+                    <button id="btn-restart" class="w-full bg-slate-100 hover:bg-white text-slate-900 font-bold py-2 rounded-xl border-2 border-slate-950 shadow-[3px_3px_0px_#020617] active:translate-y-[3px] active:shadow-none transition-all duration-100 text-xs">
                         TENTAR NOVAMENTE
                     </button>
-                    <button id="btn-back-menu" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl shadow-[0_4px_0_#334155] active:shadow-[0_0px_0_#334155] active:translate-y-[4px] transition-all">
+                    <button id="btn-back-menu" class="w-full bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 rounded-xl border-2 border-slate-950 shadow-[3px_3px_0px_#020617] active:translate-y-[3px] active:shadow-none transition-all duration-100 text-xs">
                         MENU PRINCIPAL
                     </button>
                 </div>
+
+                <!-- Léo chocado assentado perfeitamente no rodapé -->
+                <img src="assets/sprite/cartoon/over.png" alt="Léo Triste" class="absolute bottom-0 left-2 h-[12vh] object-contain pointer-events-none select-none align-bottom">
+            </div>
+
+            <!-- Modal de Configurações (Compactado e Ancorado) -->
+            <div id="settings-modal" class="hidden flex-col items-center w-[290px] bg-slate-900/95 border-4 border-slate-950 rounded-3xl p-5 shadow-2xl z-30 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pb-[15vh]">
+                <h2 class="font-[Bangers] text-3xl text-white tracking-wide mb-3">⚙️ AJUSTAR CÂMERA</h2>
+            
+                <p class="text-[10px] text-slate-300 text-center mb-3 leading-relaxed">Escolha o ângulo de visão do caminhão.</p>
+
+                <div class="flex flex-col gap-2 w-full mb-4">
+                    <button id="btn-cam-isometric" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 rounded-lg border border-slate-950 shadow-[2px_2px_0px_#020617] active:translate-y-[2px] active:shadow-none transition-all text-[10px]">
+                        DIAGONAL RETRÔ
+                    </button>
+                    <button id="btn-cam-topdown" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-1.5 rounded-lg border border-slate-950 shadow-[2px_2px_0px_#020617] active:translate-y-[2px] active:shadow-none transition-all text-[10px]">
+                        VISÃO DE CIMA
+                    </button>
+                    <button id="btn-cam-chase" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-1.5 rounded-lg border border-slate-950 shadow-[2px_2px_0px_#020617] active:translate-y-[2px] active:shadow-none transition-all text-[10px]">
+                        CÂMERA DE AÇÃO
+                    </button>
+                </div>
+            
+                <button id="btn-close-settings" class="w-full bg-red-500 hover:bg-red-400 text-white font-bold py-2 rounded-xl border-4 border-slate-950 shadow-[3px_3px_0px_#020617] active:translate-y-[3px] active:shadow-none transition-all duration-100 text-xs">
+                    CONFIRMAR
+                </button>
+
+                <!-- Léo ferramentas assentado perfeitamente no rodapé -->
+                <img src="assets/sprite/cartoon/config.png" alt="Léo Config" class="absolute bottom-0 right-2 h-[12vh] object-contain pointer-events-none select-none align-bottom">
             </div>
 
         </div> <!-- Fim do ui-layer -->
         
-        <!-- O Container onde o Three.js vai injetar o Canvas [1] -->
+        <!-- Container do Three.js -->
         <div id="game-container" class="absolute inset-0 z-0"></div>
      
-    </div> <!-- Fim do game-wrapper [1] -->
+    </div> <!-- Fim do game-wrapper -->
 
     <script type="module" src="js/main.js"></script>
 </body>
