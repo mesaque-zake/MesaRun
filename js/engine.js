@@ -14,15 +14,15 @@ const CAMERA_PRESETS = [
     {
         name: 'topdown',
         menu: new THREE.Vector3(-1, 15, -25),          
-        playLeft: new THREE.Vector3(-5, 30, -100),     
-        playRight: new THREE.Vector3(5, 30, -100),     
+        playLeft: new THREE.Vector3(-5, 30, -120),     
+        playRight: new THREE.Vector3(5, 30, -120),     
         menuLook: new THREE.Vector3(0, 2.5, 0)
     },
     {
         name: 'chase',
         menu: new THREE.Vector3(0, 10, -25),            
-        playLeft: new THREE.Vector3(0, 18, -50),      
-        playRight: new THREE.Vector3(0, 18, -50),
+        playLeft: new THREE.Vector3(0, 18, -70),      
+        playRight: new THREE.Vector3(0, 18, -70),
         menuLook: new THREE.Vector3(0, 2.0, 0)
     }
 ];
