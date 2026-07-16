@@ -3,13 +3,28 @@ body {
     font-family: 'Plus Jakarta Sans', sans-serif;
     margin: 0;
     padding: 0;
+    background-color: #030712; /* Evita flashes brancos no carregamento */
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
-/* Removemos bordas de seleção no mobile */
+/* Evita seleção acidental de imagens, botões e textos ao clicar rápido (essencial no mobile) */
+* {
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    outline: none !important; /* Remove bordas azuis de foco no clique */
+}
+
+/* Removemos bordas de seleção no canvas do motor 3D */
 canvas {
     display: block;
     outline: none;
 }
+
 /* Força todo o esqueleto do jogo a travar dentro do quadrado do wrapper */
 #game-wrapper {
     max-width: 100vh !important;
@@ -24,4 +39,58 @@ canvas {
 #game-container canvas {
     width: 100% !important;
     height: 100% !important;
+}
+
+/* Ajuste Fino de Baseline: Garante que os PNGs fiquem assentados e flush com o rodapé, sem gaps */
+img.absolute.bottom-0 {
+    display: block !important;
+    vertical-align: bottom !important;
+    margin-bottom: 0 !important;
+    bottom: 0 !important;
+}
+
+/* Vinheta Cinematográfica: Escurece suavemente as bordas internas do jogo */
+#game-wrapper::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(circle, rgba(0,0,0,0) 45%, rgba(3,7,18,0.50) 100%);
+    z-index: 1; /* Fica acima do 3D mas abaixo de toda a HUD e menus */
+}
+
+/* Estilização Moderna do Scrollbar para a Lista de Ranking (Webkit) */
+#ranking-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+#ranking-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 9999px;
+}
+
+#ranking-list::-webkit-scrollbar-thumb {
+    background: #10b981; /* Verde Esmeralda */
+    border-radius: 9999px;
+}
+
+#ranking-list::-webkit-scrollbar-thumb:hover {
+    background: #34d399;
+}
+
+/* Animação Gamer Pulsante para o Alerta de Veículo "!" */
+@keyframes warning-pulse {
+    0%, 100% {
+        transform: translate(-50%, -50%) scale(0.9);
+        filter: drop-shadow(0 0 2px rgba(220, 38, 38, 0.5));
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.15);
+        filter: drop-shadow(0 0 10px rgba(220, 38, 38, 0.95));
+    }
+}
+
+/* Sobrescreve o bounce padrão nas sirenes de perigo para usar nossa pulsação personalizada */
+[id^="warning-siren-"] {
+    animation: warning-pulse 0.4s infinite ease-in-out !important;
 }
