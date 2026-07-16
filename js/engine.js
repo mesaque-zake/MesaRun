@@ -21,8 +21,8 @@ const CAMERA_PRESETS = [
     {
         name: 'chase',
         menu: new THREE.Vector3(0, 15, -25),            
-        playLeft: new THREE.Vector3(0, 30, -70),      
-        playRight: new THREE.Vector3(0, 30, -70),
+        playLeft: new THREE.Vector3(0, 30, -130),      
+        playRight: new THREE.Vector3(0, 30, -130),
         menuLook: new THREE.Vector3(0, 2.0, 0)
     }
 ];
