@@ -20,9 +20,9 @@ const CAMERA_PRESETS = [
     },
     {
         name: 'chase',
-        menu: new THREE.Vector3(0, 5, -25),            
-        playLeft: new THREE.Vector3(0, 6.5, -50),      
-        playRight: new THREE.Vector3(0, 6.5, -50),
+        menu: new THREE.Vector3(0, 10, -25),            
+        playLeft: new THREE.Vector3(0, 18, -50),      
+        playRight: new THREE.Vector3(0, 18, -50),
         menuLook: new THREE.Vector3(0, 2.0, 0)
     }
 ];
