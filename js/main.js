@@ -16,6 +16,7 @@ const gameWrapper = document.getElementById('game-wrapper');
 const btnSettings = document.getElementById('btn-settings');
 const settingsModal = document.getElementById('settings-modal');
 const btnCloseSettings = document.getElementById('btn-close-settings');
+const btnCloseSettingsX = document.getElementById('btn-close-settings-x'); // Novo X
 const btnCamIsometric = document.getElementById('btn-cam-isometric');
 const btnCamTopdown = document.getElementById('btn-cam-topdown');
 const btnCamChase = document.getElementById('btn-cam-chase');
@@ -30,6 +31,7 @@ let isFlipped = false;
 const btnPlay = document.getElementById('btn-play');
 const btnRanking = document.getElementById('btn-ranking');
 const btnCloseRanking = document.getElementById('btn-close-ranking');
+const btnCloseRankingX = document.getElementById('btn-close-ranking-x'); // Novo X
 
 // --- CONTROLE DE FREIOS ---
 let isGameOver = false;     
@@ -56,9 +58,13 @@ const btnSaveRecord = document.getElementById('btn-save-record');
 // Elementos da UI de Pontuação e Avisos (HUD)
 const scoreLayer = document.getElementById('score-layer');
 const scoreText = document.getElementById('score-text');
+
+// Novos Elementos do Toast
 const toastLayer = document.getElementById('toast-layer');
 const toastText = document.getElementById('toast-text');
 const toastCharImg = document.getElementById('toast-char-img'); 
+const toastBalloon = document.getElementById('toast-balloon');
+const toastArrow = document.getElementById('toast-arrow');
 
 // --- VARIÁVEIS DE PONTUAÇÃO E SPAWN ---
 let score = 0;              
@@ -75,11 +81,11 @@ let policeWarningIndex = 0;
 function init() {
     console.log("MesaRun! Motor 3D Inicializado...");
     initEngine();
-    
+
     // --- CARREGAMENTO IMEDIATO DO CENÁRIO ---
     createWorld(scene);
     createEntities(scene);
-    
+
     // Liga as funções de clique dos botões do menu
     setupMenu();
 
@@ -96,12 +102,14 @@ function setupMenu() {
         rankingModal.classList.add('flex');
     });
 
-    // Fechar o Ranking (Voltar)
-    btnCloseRanking.addEventListener('click', () => {
+    // Fechar o Ranking (Voltar ou X)
+    const closeRankingAction = () => {
         rankingModal.classList.add('hidden');
         rankingModal.classList.remove('flex');
         mainMenu.classList.remove('hidden');
-    });
+    };
+    btnCloseRanking.addEventListener('click', closeRankingAction);
+    btnCloseRankingX.addEventListener('click', closeRankingAction);
 
     // Clicar no Play (Inicia a sequência)
     btnPlay.addEventListener('click', () => {
@@ -117,7 +125,7 @@ function setupMenu() {
         } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
             movePlayerRight();
         }
-        
+
         // Ativa o Freio
         if ((e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') && !activeBraking && brakeCharges > 0) {
             activeBraking = true;
@@ -135,7 +143,7 @@ function setupMenu() {
         }
     });
 
-    // Controle unificado por cliques de mouse e toques na tela (Pointer Events)
+    // Controle unificado por cliques de mouse e toques na tela
     gameWrapper.addEventListener('pointerdown', (e) => {
         if (!isPlaying || isGameOver) return;
 
@@ -146,7 +154,6 @@ function setupMenu() {
         const brakeThreshold = rect.height * 0.8; 
 
         if (y > brakeThreshold) {
-            // PISAR NO FREIO
             if (!activeBraking && brakeCharges > 0) {
                 activeBraking = true;
                 brakeCharges--;
@@ -154,7 +161,6 @@ function setupMenu() {
                 updateBrakeUI();
             }
         } else {
-            // DESVIAR DE FAIXA
             if (x < rect.width / 2) {
                 movePlayerLeft();
             } else {
@@ -163,7 +169,6 @@ function setupMenu() {
         }
     });
 
-    // SOLTAR O TOQUE OU O CLIQUE
     gameWrapper.addEventListener('pointerup', () => {
         if (activeBraking) {
             activeBraking = false;
@@ -171,7 +176,6 @@ function setupMenu() {
         }
     });
 
-    // Se o dedo arrastar ou o mouse sair da tela de jogo enquanto freia
     gameWrapper.addEventListener('pointerleave', () => {
         if (activeBraking) {
             activeBraking = false;
@@ -179,13 +183,11 @@ function setupMenu() {
         }
     });
 
-    // ESCUTA DE PERDA DE FOCO
     window.addEventListener('blur', () => {
         activeBraking = false;
         setBrakingState(false);
     });
 
-    // Conecta as ações dos botões do painel de Game Over
     btnRestart.addEventListener('click', () => {
         restartGame();
     });
@@ -194,7 +196,6 @@ function setupMenu() {
         backToMenu();
     });
 
-    // Conecta a ação de salvar o nome no ranking
     btnSaveRecord.addEventListener('click', () => {
         saveRecord();
     });
@@ -206,11 +207,14 @@ function setupMenu() {
         settingsModal.classList.add('flex');
     });
 
-    btnCloseSettings.addEventListener('click', () => {
+    // Fechar Ajustes (Voltar ou X)
+    const closeSettingsAction = () => {
         settingsModal.classList.add('hidden');
         settingsModal.classList.remove('flex');
         mainMenu.classList.remove('hidden');
-    });
+    };
+    btnCloseSettings.addEventListener('click', closeSettingsAction);
+    btnCloseSettingsX.addEventListener('click', closeSettingsAction);
 
     btnCamIsometric.addEventListener('click', () => {
         setCameraPreset(0);
@@ -229,30 +233,28 @@ function setupMenu() {
 }
 
 function startGameSequence() {
-    // 1. Oculta o Menu Principal (junto com a arte home.png que está integrada nele)
+    const topLogos = document.getElementById('top-logos');
     mainMenu.classList.add('hidden');
     footer.classList.add('hidden');
-    
-    // 2. Diálogos do Countdown nas falas dos personagens (Sem poluição de textos gigantes!)
-    triggerToast(0, "Se preparem... 3!", "leo.png", true);
+    if (topLogos) topLogos.classList.add('hidden'); // Oculta as logos do topo também
+
+    triggerToast(0, "Se preparem... 3!", "leo1.png", true);
 
     setTimeout(() => { 
-        triggerToast(0, "Acelerar... 2!", "leo.png", true);
+        triggerToast(0, "Acelerar... 2!", "leo1.png", true);
     }, 1000);
-    
+
     setTimeout(() => { 
-        triggerToast(0, "Pé na tábua... 1!", "leo.png", true);
+        triggerToast(0, "Pé na tábua... 1!", "leo1.png", true);
     }, 2000);
-    
+
     setTimeout(() => { 
-        // Lucas assume e encoraja o motorista
-        triggerToast(0, "Colete o máximo de doações que conseguir!", "lucas.png", true);
+        triggerToast(0, "Colete o máximo de doações que conseguir!", "lucas1.png", true);
     }, 3000);
-    
-    // 3. Libera o jogo após os diálogos de abertura
+
     setTimeout(() => {
         menuBackdrop.style.opacity = '0'; 
-        
+
         setTimeout(() => {
             menuBackdrop.classList.add('hidden'); 
             hudLayer.classList.remove('hidden'); 
@@ -263,26 +265,24 @@ function startGameSequence() {
             startObstacleSpawner();
             startItemSpawner();
             startBiomeTimer(); 
-                      
+
             nextSpecialEvent = 'garbage';
             startSpecialEventTimer();
-            
-            console.log("Sinal Verde! Os caminhões estão na pista!");
         }, 500);
-        
+
     }, 4500);
 }
 
 function gameLoop(time) {
     requestAnimationFrame(gameLoop);
-    
+
     const deltaTime = Math.min((time - lastTime) / 1000, 0.1); 
     lastTime = time;
 
     if (!isGameOver) {
         updateWorld();
         updateEntities(activeBraking, deltaTime);
-        
+
         if (isPlaying) {
             const displaySpeed = Math.round((currentSpeed / 0.5) * 53 + 2);
             speedText.innerText = `${displaySpeed} km/h`;
@@ -295,13 +295,12 @@ function gameLoop(time) {
         }
         checkItemCollections(handleItemCollection);
     }
-    
+
     renderEngine(isPlaying);
 }
 
 window.onload = init;
 
-// Atualiza a opacidade do freio
 function updateBrakeUI() {
     const iconIndex = brakeCharges + 1; 
     const icon = document.getElementById(`brake-icon-${iconIndex}`);
@@ -310,15 +309,12 @@ function updateBrakeUI() {
     }
 }
 
-// Inicia o gerador de obstáculos
 function startObstacleSpawner() {
     if (spawnerTimeout) clearTimeout(spawnerTimeout);
 
     function scheduleNextObstacle() {
         if (!isPlaying || isGameOver) return;
-        
         const randomDelay = Math.random() * 1000 + 1800; 
-        
         spawnerTimeout = setTimeout(() => {
             spawnObstacle();
             scheduleNextObstacle();
@@ -328,7 +324,6 @@ function startObstacleSpawner() {
     scheduleNextObstacle();
 }
 
-// Dispara o Game Over cinematográfico
 function triggerGameOver() {
     isGameOver = true;
     isPlaying = false;
@@ -336,15 +331,12 @@ function triggerGameOver() {
     if (biomeTimer) clearInterval(biomeTimer);
     if (specialEventTimeout) clearTimeout(specialEventTimeout);
 
-    // 1. Dispara o Tremor de Tela
     triggerCameraShake(1.5); 
 
-    // 2. Aguarda o Hit Stop de colisão
     setTimeout(() => {
         menuBackdrop.classList.remove('hidden');
         menuBackdrop.style.opacity = '1';
-        
-        // Esconde a HUD superior inteira e balão de diálogos
+
         hudLayer.classList.add('hidden');
         speedometerLayer.classList.add('hidden');
         scoreLayer.classList.add('hidden');
@@ -355,13 +347,12 @@ function triggerGameOver() {
 
         gameOverModal.classList.remove('hidden');
         gameOverModal.classList.add('flex');
-        
+
         gameOverScore.innerText = `${score} kg`;
         checkAndShowRecordForm();
     }, 2000);
 }
 
-// Reinicia a partida
 function restartGame() {
     gameOverModal.classList.add('hidden');
     gameOverModal.classList.remove('flex');
@@ -376,7 +367,7 @@ function restartGame() {
     setBrakingState(false);
     score = 0;
     scoreText.innerText = `0 kg`;
-    
+
     for (let i = 1; i <= 3; i++) {
         const icon = document.getElementById(`brake-icon-${i}`);
         if (icon) icon.classList.remove('grayscale', 'opacity-30');
@@ -387,6 +378,7 @@ function restartGame() {
 }
 
 function backToMenu() {
+    const topLogos = document.getElementById('top-logos');
     gameOverModal.classList.add('hidden');
     gameOverModal.classList.remove('flex');
     if (biomeTimer) clearInterval(biomeTimer);
@@ -394,7 +386,7 @@ function backToMenu() {
     if (specialEventTimeout) clearTimeout(specialEventTimeout);
 
     scoreLayer.classList.add('hidden');
-    
+
     isGameOver = false;
     isPlaying = false;
     brakeCharges = 3;
@@ -412,13 +404,12 @@ function backToMenu() {
 
     resetEntities();
 
-    // Reexibe o Menu Principal e o Rodapé
     mainMenu.classList.remove('hidden');
     footer.classList.remove('hidden');
+    if (topLogos) topLogos.classList.remove('hidden'); // Volta as logos pro menu
     menuBackdrop.style.opacity = '1';
 }
 
-// Dispara o gerador de alimentos
 function startItemSpawner() {
     if (itemTimeout) clearTimeout(itemTimeout);
 
@@ -430,11 +421,10 @@ function startItemSpawner() {
             scheduleNextItem();
         }, randomDelay);
     }
-    
+
     scheduleNextItem();
 }
 
-// Processa a pontuação e os diálogos educativos
 function handleItemCollection(item, itemX) {
     score += item.value;
     if (score < 0) score = 0;
@@ -443,19 +433,17 @@ function handleItemCollection(item, itemX) {
     triggerFloatingText(item.value, itemX);
 
     if (!item.isHealthy) {
-        // Envia a flag isGarbage para mapear o lucas2.png se for dejetos do Boss
         triggerToast(item.value, item.msg, item.file, false, item.isGarbage);
     }
 }
 
-// Animação de texto flutuante no asfalto
 function triggerFloatingText(value, xPos) {
     const wrapper = document.getElementById('game-wrapper');
     if (!wrapper) return;
 
     const textDiv = document.createElement('div');
     textDiv.className = `absolute bottom-[28%] font-[Bangers] text-4xl tracking-wide z-30 pointer-events-none transition-all duration-700 transform translate-y-0 opacity-100`;
-    
+
     let leftPercent = "50%";
     if (xPos > 2) leftPercent = "28%";
     else if (xPos < -5) leftPercent = "72%";
@@ -482,69 +470,91 @@ function triggerFloatingText(value, xPos) {
     }, 800);
 }
 
-// Resolve o PNG correspondente com base no arquivo .glb
 function getCartoonSpriteForFood(itemFile, isGarbage) {
-    if (isGarbage) return 'lucas2.png'; // Lucas 2: Alertas de dejetos do Boss
+    if (isGarbage) return 'lucas2.png'; 
     if (!itemFile) return 'lucas1.png';
-    
-    if (itemFile === 'styrofoam-dinner.glb') return 'leo1.png'; // Léo 1: Alimentos antigos
-    
+
+    if (itemFile === 'styrofoam-dinner.glb') return 'leo1.png'; 
+
     if (itemFile.includes('-half') || itemFile.includes('-slice')) {
-        return 'lucas1.png'; // Lucas 1: Frutas já cortadas
+        return 'lucas1.png'; 
     }
-    
+
     const readyMeals = [
         'bowl-broth.glb', 'burger.glb', 'chinese.glb', 'egg-cooked.glb', 
         'fries.glb', 'hot-dog.glb', 'meat-ribs.glb', 'rice-ball.glb', 
         'sandwich.glb', 'sushi-egg.glb', 'taco.glb', 'turkey.glb'
     ];
-    if (readyMeals.includes(itemFile)) return 'lucas3.png'; // Lucas 3: Lanches prontos
-    
+    if (readyMeals.includes(itemFile)) return 'lucas3.png'; 
+
     const openWrappers = ['can-open.glb', 'candy-bar-wrapper.glb', 'chocolate-wrapper.glb'];
-    if (openWrappers.includes(itemFile)) return 'lucas4.png'; // Lucas 4: Embalagens abertas
-    
+    if (openWrappers.includes(itemFile)) return 'lucas4.png'; 
+
     const sweets = ['donut-sprinkles.glb', 'cake.glb'];
-    if (sweets.includes(itemFile)) return 'lucas5.png'; // Lucas 5: Doces com recheio
-    
+    if (sweets.includes(itemFile)) return 'lucas5.png'; 
+
     const forbidden = ['wine-red.glb', 'wine-white.glb', 'mushroom-half.glb', 'mushroom.glb'];
-    if (forbidden.includes(itemFile)) return 'lucas6.png'; // Lucas 6: Bebidas/Cogumelos proibidos
-    
+    if (forbidden.includes(itemFile)) return 'lucas6.png'; 
+
     return 'lucas1.png'; 
 }
 
-// Gerencia o Balão de Alerta Cartoon (Agora totalmente limpo de textos auxiliares)
+// NOVA LÓGICA DO DIÁLOGO CARTOON 
 function triggerToast(penalty, msg, fileOrSpriteName, isManualSprite = false, isGarbage = false) {
     if (toastTimeout) clearTimeout(toastTimeout);
 
-    let spritePath = "assets/sprite/cartoon/";
+    let spriteName = "";
     if (isManualSprite) {
-        spritePath += fileOrSpriteName; 
+        spriteName = fileOrSpriteName; 
     } else {
-        spritePath += getCartoonSpriteForFood(fileOrSpriteName, isGarbage); 
+        spriteName = getCartoonSpriteForFood(fileOrSpriteName, isGarbage); 
     }
-    toastCharImg.src = spritePath;
-
-    // Exibe estritamente apenas a mensagem educacional do Lucas/Léo
+    
+    toastCharImg.src = `assets/sprite/cartoon/${spriteName}`;
     toastText.innerText = msg;
 
-    // Mostra o balão com animação
-    toastLayer.classList.remove('hidden');
-    setTimeout(() => {
-        toastLayer.classList.remove('translate-y-10', 'opacity-0');
-        toastLayer.classList.add('translate-y-0', 'opacity-100');
-    }, 10);
+    // 1. Limpa todas as classes de layout e animação anteriores
+    toastLayer.classList.remove('hidden', 'flex-row', 'flex-row-reverse');
+    toastCharImg.classList.remove('slide-in-left', 'slide-in-right');
+    toastArrow.className = ''; 
+    toastBalloon.classList.remove('balloon-pop');
 
-    // Oculta após 3 segundos
+    // Força o navegador a recalcular o DOM para reiniciar a animação do zero
+    void toastLayer.offsetWidth;
+
+    // 2. Define o lado com base no personagem
+    if (spriteName.toLowerCase().includes('leo')) {
+        // Léo fala da Direita
+        toastLayer.classList.add('flex-row-reverse');
+        toastArrow.classList.add('toast-arrow-right');
+        toastCharImg.classList.add('slide-in-right');
+    } else {
+        // Lucas fala da Esquerda
+        toastLayer.classList.add('flex-row');
+        toastArrow.classList.add('toast-arrow-left');
+        toastCharImg.classList.add('slide-in-left');
+    }
+
+    // 3. Adiciona a classe que faz o balão inflar
+    toastBalloon.classList.add('balloon-pop');
+
+    // Garante que o toast esteja visível
+    toastLayer.style.display = 'flex';
+    toastLayer.style.opacity = '1';
+
+    // 4. Oculta suavemente após 3 segundos
     toastTimeout = setTimeout(() => {
-        toastLayer.classList.remove('translate-y-0', 'opacity-100');
-        toastLayer.classList.add('translate-y-10', 'opacity-0');
+        toastLayer.style.transition = 'opacity 0.3s ease';
+        toastLayer.style.opacity = '0';
+        
         setTimeout(() => {
+            toastLayer.style.display = '';
             toastLayer.classList.add('hidden');
+            toastLayer.style.transition = '';
         }, 300);
     }, 3000);
 }
 
-// Atualiza a lista do ranking
 function updateLeaderboardUI() {
     const rankingList = document.getElementById('ranking-list');
     if (!rankingList) return;
@@ -559,7 +569,7 @@ function updateLeaderboardUI() {
     leaderboard.forEach((entry, index) => {
         const li = document.createElement('li');
         li.className = "flex justify-between border-b border-white/5 pb-1 text-xs md:text-sm";
-        
+
         let positionIndicator = `${index + 1}. `;
         if (index === 0) positionIndicator = "🥇 ";
         else if (index === 1) positionIndicator = "🥈 ";
@@ -570,7 +580,6 @@ function updateLeaderboardUI() {
     });
 }
 
-// Checa se qualificou para o ranking
 function checkAndShowRecordForm() {
     if (score <= 0) {
         recordForm.classList.add('hidden');
@@ -590,7 +599,6 @@ function checkAndShowRecordForm() {
     }
 }
 
-// Salva o nome e peso no localStorage
 function saveRecord() {
     const name = playerNameInput.value.trim().toUpperCase();
     if (!name) {
@@ -611,10 +619,9 @@ function saveRecord() {
     alert("Recorde gravado com sucesso!");
 }
 
-// Inicia o cronômetro de biomas
 function startBiomeTimer() {
     if (biomeTimer) clearInterval(biomeTimer);
-    
+
     currentBiomeIndex = 0;
     isFlipped = false;
     setCameraFlippedState(false);
@@ -628,7 +635,6 @@ function startBiomeTimer() {
     }, 60000); 
 }
 
-// Transição de biomas
 function triggerBiomeTransition() {
     if (spawnerTimeout) clearTimeout(spawnerTimeout);
     if (itemTimeout) clearTimeout(itemTimeout);
@@ -654,7 +660,6 @@ function triggerBiomeTransition() {
     }, 1500);
 }
 
-// Cronômetro para eventos especiais
 function startSpecialEventTimer() {
     if (specialEventTimeout) clearTimeout(specialEventTimeout);
 
@@ -665,15 +670,13 @@ function startSpecialEventTimer() {
     }, 30000); 
 }
 
-// Orquestra a rotação de eventos (Lixo -> Polícia -> Ambulância)
 function triggerSpecialEvent() {
     if (spawnerTimeout) clearTimeout(spawnerTimeout);
     if (itemTimeout) clearTimeout(itemTimeout);
 
     if (nextSpecialEvent === 'garbage') {
-        // Alerta de Chefe com Léo 2
         triggerToast(0, "CUIDADO! CAMINHÃO DE LIXO À FRENTE!", "leo2.png", true);
-        
+
         setTimeout(() => {
             if (isPlaying && !isGameOver) {
                 spawnGarbageTruck(handleSpecialEventComplete);
@@ -684,11 +687,10 @@ function triggerSpecialEvent() {
     } 
     else if (nextSpecialEvent === 'police') {
         policeWarningIndex = Math.floor(Math.random() * 3);
-        
+
         const siren = document.getElementById(`warning-siren-${policeWarningIndex}`);
         if (siren) siren.classList.remove('hidden');
 
-        // Alerta de veículo rápido com Léo 3
         triggerToast(0, "Algum veículo está vindo rápido demais!", "leo3.png", true);
 
         setTimeout(() => {
@@ -702,11 +704,10 @@ function triggerSpecialEvent() {
     }
     else if (nextSpecialEvent === 'ambulance') {
         policeWarningIndex = Math.floor(Math.random() * 3);
-        
+
         const siren = document.getElementById(`warning-siren-${policeWarningIndex}`);
         if (siren) siren.classList.remove('hidden');
 
-        // Alerta de veículo de emergência com Léo 3
         triggerToast(0, "Algum veículo está vindo rápido demais!", "leo3.png", true);
 
         setTimeout(() => {
@@ -728,7 +729,6 @@ function handleSpecialEventComplete() {
     }
 }
 
-// Altera os botões de câmera no modal de configurações
 function updateCameraButtonsUI(activeIndex) {
     const buttons = [btnCamIsometric, btnCamTopdown, btnCamChase];
     buttons.forEach((btn, index) => {
