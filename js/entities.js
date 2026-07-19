@@ -423,13 +423,16 @@ export function updateEntities(isBraking, deltaTime = 0.016) {
             const exitSpeed = (currentSpeed - 0.20) * frameRatio;
             activeGarbageTruck.position.z -= exitSpeed;
 
+            // Retorna o fluxo de spawners imediatamente assim que o caminhão passar pelo jogador (z < 0)
+            if (onEventCompleteCallback && activeGarbageTruck.position.z < 0) {
+                onEventCompleteCallback();
+                onEventCompleteCallback = null; // Evita múltiplas chamadas
+            }
+
             if (activeGarbageTruck.position.z < -45) {
                 scene.remove(activeGarbageTruck);
                 activeGarbageTruck = null;
                 garbageTruckState = 'idle';
-                
-                if (onEventCompleteCallback) {
-                    onEventCompleteCallback(); 
                 }
             }
         }
@@ -458,14 +461,15 @@ export function updateEntities(isBraking, deltaTime = 0.016) {
                 }
             }
 
+            if (onPoliceCompleteCallback && activePolice.position.z > 15) {
+                onPoliceCompleteCallback();
+                onPoliceCompleteCallback = null;
+            }
+
             if (activePolice.position.z > 120) {
                 scene.remove(activePolice);
                 activePolice = null;
                 policeState = 'idle';
-                
-                if (onPoliceCompleteCallback) {
-                    onPoliceCompleteCallback(); 
-                }
             }
         }
     }
@@ -483,14 +487,15 @@ export function updateEntities(isBraking, deltaTime = 0.016) {
                 document.dispatchEvent(new CustomEvent('ambulance-passed'));
             }
 
+            if (onAmbulanceCompleteCallback && activeAmbulance.position.z > 15) {
+                onAmbulanceCompleteCallback();
+                onAmbulanceCompleteCallback = null;
+            }
+
             if (activeAmbulance.position.z > 120) {
                 scene.remove(activeAmbulance);
                 activeAmbulance = null;
                 ambulanceState = 'idle';
-                
-                if (onAmbulanceCompleteCallback) {
-                    onAmbulanceCompleteCallback(); 
-                }
             }
         }
     }
