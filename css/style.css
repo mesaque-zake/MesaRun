@@ -94,3 +94,11 @@
     backdrop-filter: blur(6px) !important; /* Desfoque de fundo fosco sutil */
     -webkit-backdrop-filter: blur(6px) !important; /* Suporte para navegadores iOS/Safari */
 }
+
+
+/* Efeito de vidro fosco para as caixas de Modais */
+.glass-modal {
+    background: rgba(15, 23, 42, 0.75) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+}
