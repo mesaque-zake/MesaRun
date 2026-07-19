@@ -52,39 +52,38 @@
    AS SETAS MÁGICAS DO BALÃO (CSS Triangles)
 ========================================= */
 
-/* Limpeza geral da seta */
+/* Limpeza geral e alinhamento vertical centralizado */
 #toast-arrow::before, #toast-arrow::after {
     content: '';
     position: absolute;
-    bottom: 0;
+    top: 50%;
+    transform: translateY(-50%);
 }
 
 /* SETA PARA ESQUERDA (Apontando pro Lucas) */
 .toast-arrow-left::before { /* Borda grossa */
     left: -14px;
-    border-top: 8px solid transparent;
-    border-right: 12px solid #020617; /* Cor da borda Tailwind (slate-950) */
-    border-bottom: 8px solid transparent;
+    border-top: 10px solid transparent;
+    border-right: 14px solid #020617; /* Cor da borda Tailwind (slate-950) */
+    border-bottom: 10px solid transparent;
 }
 .toast-arrow-left::after { /* Preenchimento branco */
     left: -8px;
-    bottom: 3px;
-    border-top: 6px solid transparent;
-    border-right: 10px solid #ffffff;
-    border-bottom: 6px solid transparent;
+    border-top: 8px solid transparent;
+    border-right: 12px solid #ffffff;
+    border-bottom: 8px solid transparent;
 }
 
 /* SETA PARA A DIREITA (Apontando pro Léo) */
 .toast-arrow-right::before { /* Borda grossa */
     right: -14px;
-    border-top: 8px solid transparent;
-    border-left: 12px solid #020617;
-    border-bottom: 8px solid transparent;
+    border-top: 10px solid transparent;
+    border-left: 14px solid #020617;
+    border-bottom: 10px solid transparent;
 }
 .toast-arrow-right::after { /* Preenchimento branco */
     right: -8px;
-    bottom: 3px;
-    border-top: 6px solid transparent;
-    border-left: 10px solid #ffffff;
-    border-bottom: 6px solid transparent;
+    border-top: 8px solid transparent;
+    border-left: 12px solid #ffffff;
+    border-bottom: 8px solid transparent;
 }
