@@ -20,11 +20,10 @@ const CAMERA_PRESETS = [
     }, 
     { 
         name: 'chase', 
-        menu: new THREE.Vector3(5, 15, 25),
-        // Posicionada à frente do caminhão (Z positivo) olhando para trás (Z menor)
+        menu: new THREE.Vector3(6, 11, 28),
         playLeft: new THREE.Vector3(20, 35, 100),
         playRight: new THREE.Vector3(-20, 35, 100), 
-        menuLook: new THREE.Vector3(0, 2.0, 0) 
+        menuLook: new THREE.Vector3(0, 2.2, 0) 
     }
 ];
 
