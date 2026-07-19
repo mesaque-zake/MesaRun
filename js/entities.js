@@ -85,6 +85,7 @@ export let activeAmbulance = null;
 let ambulanceState = 'idle';
 let ambulancePassed = false;
 let onAmbulanceCompleteCallback = null;
+let ambulanceTargetX = 0;
 
 export let healthyTemplates = {};
 export let negativeTemplates = {};
@@ -477,6 +478,24 @@ export function updateEntities(isBraking, deltaTime = 0.016) {
             const AMBULANCE_BASE_SPEED = 0.90;
             const relativeSpeed = (AMBULANCE_BASE_SPEED - currentSpeed) * frameRatio;
             activeAmbulance.position.z += relativeSpeed; 
+
+            // Interpola suavemente a posição X da ambulância para a faixa de destino
+            activeAmbulance.position.x += (ambulanceTargetX - activeAmbulance.position.x) * 0.10 * frameRatio;
+
+            // Inteligência Artificial: Desvia de quaisquer outros carros à frente
+            for (let obs of activeObstacles) {
+                const sameLane = Math.abs(obs.position.x - activeAmbulance.position.x) < 1.8;
+                const inFront = obs.position.z > activeAmbulance.position.z;
+                const distZ = obs.position.z - activeAmbulance.position.z;
+
+                if (sameLane && inFront && distZ < 15) {
+                    const otherLanes = currentLanes.filter(l => Math.abs(l - activeAmbulance.position.x) > 1.8);
+                    if (otherLanes.length > 0) {
+                        ambulanceTargetX = otherLanes[Math.floor(Math.random() * otherLanes.length)];
+                    }
+                    break;
+                }
+            }
 
             if (activeAmbulance.position.z > 0 && !ambulancePassed) {
                 ambulancePassed = true;
