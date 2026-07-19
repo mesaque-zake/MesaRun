@@ -433,7 +433,6 @@ export function updateEntities(isBraking, deltaTime = 0.016) {
                 scene.remove(activeGarbageTruck);
                 activeGarbageTruck = null;
                 garbageTruckState = 'idle';
-                }
             }
         }
     }
@@ -500,7 +499,6 @@ export function updateEntities(isBraking, deltaTime = 0.016) {
         }
     }
 }
-
 // Instancia um clone aleatório de qualquer carro
 export function spawnObstacle() {
     if (obstacleTemplates.length === 0) return;
