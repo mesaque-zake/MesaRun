@@ -1,5 +1,5 @@
 import { initEngine, renderEngine, scene, triggerCameraShake, setCameraFlippedState, triggerCrashZoom, resetCrashZoom, setCameraPreset } from './engine.js';
-import { createWorld, updateWorld, setBrakingState, currentSpeed, setActiveBiome } from './world.js';
+import { createWorld, updateWorld, setBrakingState, currentSpeed, setActiveBiome, setSpawnMacumbaTriangle } from './world.js';
 import { createEntities, movePlayerLeft, movePlayerRight, updateEntities, spawnObstacle, checkCollisions, resetEntities, spawnItem, checkItemCollections, setTruckTransitionTurn, updateLaneOffsets, spawnGarbageTruck, activeGarbageTruck, spawnPoliceCar, activePolice, spawnAmbulance } from './entities.js';
 
 // Elementos da Interface (UI)
@@ -252,10 +252,10 @@ function startGameSequence() {
         triggerToast(0, "Colete o máximo de doações que conseguir!", "lucas.png", true);
     }, 3000);
 
-    setTimeout(() => {
+    setTimeout(() => { // Temporizador A (Início da transição)
         menuBackdrop.style.opacity = '0'; 
 
-        setTimeout(() => {
+        setTimeout(() => { // Temporizador B (Entrada do HUD e Gameplay)
             menuBackdrop.classList.add('hidden'); 
             hudLayer.classList.remove('hidden'); 
             speedometerLayer.classList.remove('hidden');
@@ -270,13 +270,15 @@ function startGameSequence() {
             startSpecialEventTimer();
 
             // --- NOVO EVENTO AGENDADO: Grupo especial aos 15s de corrida ---
-            setTimeout(() => {
+            setTimeout(() => { // Temporizador C (Nascimento especial)
                 if (isPlaying && !isGameOver) {
                     setSpawnMacumbaTriangle(true);
                 }
             }, 15000);
-    }, 4500);
-}
+
+        }, 500); // Fechamento do Temporizador B
+    }, 4500); // Fechamento do Temporizador A
+} // Fechamento da função startGameSequence
 
 function gameLoop(time) {
     requestAnimationFrame(gameLoop);
