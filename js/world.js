@@ -2,20 +2,22 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { scene, dirLight, hemisphereLight, currentPresetIndex } from './engine.js';
 
-export let roadGroup;
-let dashedLines = [];
+export let roadGroup; 
+let dashedLines = []; 
 let roadPieces = [];
 
-const ROAD_LENGTH = 360; 
+const ROAD_LENGTH = 360;
 
 // --- CONTROLE DE VELOCIDADE DINÂMICA ---
-export let currentSpeed = 0.5;     
-const NORMAL_SPEED = 0.5;          
-const DECEL_RATE = 0.08;           
-const ACCEL_RATE = 0.02;           
-let isBraking = false;             
+export let currentSpeed = 0.5;
+const NORMAL_SPEED = 0.5;
+const DECEL_RATE = 0.08;
+const ACCEL_RATE = 0.02;
+let isBraking = false;
 
-let tireMarks = [];                
+let tireMarks = [];
+// Armazena grupos especiais como o triângulo de macumbas
+let activeSpecialScenery = [];
 
 // --- CONFIGURAÇÃO COMPLETA DOS BIOMAS ---
 const BIOME_CONFIG = {
@@ -24,28 +26,32 @@ const BIOME_CONFIG = {
         models: [
             'tree_cone.glb', 'tree_cone_dark.glb', 'tree_cone_fall.glb', 'tree_default.glb',
             'tree_default_dark.glb', 'tree_default_fall.glb', 'tree_detailed.glb',
-            'tree_detailed_dark.glb', 'tree_detailed_fall.glb', 'tree_fat.glb', 'tree_fat_darkh.glb',
-            'tree_fat_fall.glb', 'tree_oak.glb', 'tree_oak_dark.glb', 'tree_oak_fall.glb', 'tree_palm.glb',
-            'tree_palmBend.glb', 'tree_palmDetailedShort.glb', 'tree_palmDetailedTall.glb',
-            'tree_palmShort.glb', 'tree_palmTall.glb', 'tree_pineDefaultA.glb', 'tree_pineDefaultB.glb',
+            'tree_detailed_dark.glb', 'tree_detailed_fall.glb', 'tree_fat.glb',
+            'tree_fat_darkh.glb', 'tree_fat_fall.glb', 'tree_oak.glb', 'tree_oak_dark.glb',
+            'tree_oak_fall.glb', 'tree_palm.glb', 'tree_palmBend.glb',
+            'tree_palmDetailedShort.glb', 'tree_palmDetailedTall.glb', 'tree_palmShort.glb',
+            'tree_palmTall.glb', 'tree_pineDefaultA.glb', 'tree_pineDefaultB.glb',
             'tree_pineGroundA.glb', 'tree_pineGroundB.glb', 'tree_pineRoundA.glb',
-            'tree_pineRoundB.glb', 'tree_pineRoundC.glb', 'tree_pineRoundD.glb', 'tree_pineRoundE.glb',
-            'tree_pineRoundF.glb', 'tree_pineSmallA.glb', 'tree_pineSmallB.glb', 'tree_pineSmallC.glb',
-            'tree_pineSmallD.glb', 'tree_pineTallA.glb', 'tree_pineTallA_detailed.glb',
-            'tree_pineTallB.glb', 'tree_pineTallB_detailed.glb', 'tree_pineTallC.glb',
-            'tree_pineTallC_detailed.glb', 'tree_pineTallD.glb', 'tree_pineTallD_detailed.glb',
-            'tree_plateau.glb', 'tree_plateau_dark.glb', 'tree_simple_dark.glb', 'tree_simple_fall.glb',
-            'tree_tall.glb', 'tree_thin.glb', 'tree_thin_dark.glb'
+            'tree_pineRoundB.glb', 'tree_pineRoundC.glb', 'tree_pineRoundD.glb',
+            'tree_pineRoundE.glb', 'tree_pineRoundF.glb', 'tree_pineSmallA.glb',
+            'tree_pineSmallB.glb', 'tree_pineSmallC.glb', 'tree_pineSmallD.glb',
+            'tree_pineTallA.glb', 'tree_pineTallA_detailed.glb', 'tree_pineTallB.glb',
+            'tree_pineTallB_detailed.glb', 'tree_pineTallC.glb',
+            'tree_pineTallC_detailed.glb', 'tree_pineTallD.glb',
+            'tree_pineTallD_detailed.glb', 'tree_plateau.glb', 'tree_plateau_dark.glb',
+            'tree_simple_dark.glb', 'tree_simple_fall.glb', 'tree_tall.glb',
+            'tree_thin.glb', 'tree_thin_dark.glb'
         ],
         detailFolder: 'assets/model/biome/nature/detail/',
         details: [
             'cactus_tall.glb', 'crops_wheatStageA.glb', 'flower_redA.glb', 'flower_yellowB.glb',
-            'grass_large.glb', 'grass_leafsLarge.glb', 'macumba.glb', 'mushroom_redGroup.glb',
-            'mushroom_redTall.glb', 'mushroom_tanGroup.glb', 'path_stoneCircle.glb',
-            'plant_bushDetailed.glb', 'plant_bushLarge.glb', 'plant_bushLargeTriangle.glb',
-            'plant_bushTriangle.glb', 'rock_largeB.glb', 'rock_largeE.glb', 'rock_smallA.glb',
-            'rock_smallFlatA.glb', 'rock_smallTopA.glb', 'rock_smallTopB.glb', 'rock_tallA.glb',
-            'sign.glb', 'stone_largeA.glb', 'stone_largeD.glb', 'stone_smallF.glb', 'stone_tallA.glb',
+            'grass_large.glb', 'grass_leafsLarge.glb', 'macumba.glb',
+            'mushroom_redGroup.glb', 'mushroom_redTall.glb', 'mushroom_tanGroup.glb',
+            'path_stoneCircle.glb', 'plant_bushDetailed.glb', 'plant_bushLarge.glb',
+            'plant_bushLargeTriangle.glb', 'plant_bushTriangle.glb', 'rock_largeB.glb',
+            'rock_largeE.glb', 'rock_smallA.glb', 'rock_smallFlatA.glb',
+            'rock_smallTopA.glb', 'rock_smallTopB.glb', 'rock_tallA.glb', 'sign.glb',
+            'stone_largeA.glb', 'stone_largeD.glb', 'stone_smallF.glb', 'stone_tallA.glb',
             'tree_blocks.glb', 'tree_blocks_fall.glb'
         ]
     },
@@ -72,7 +78,7 @@ const BIOME_CONFIG = {
             'building-p.glb', 'building-q.glb', 'building-r.glb', 'building-s.glb', 'building-t.glb'
         ],
         detailFolder: null,
-        details: []         
+        details: []
     },
     city: {
         folder: 'assets/model/biome/city/',
@@ -83,24 +89,27 @@ const BIOME_CONFIG = {
             'skyscraper-d.glb', 'skyscraper-e.glb'
         ],
         detailFolder: null,
-        details: []         
+        details: []
     }
 };
 
-export let streetlightTemplate = null;
-export let activeBiome = 'nature';    
-export let groundPlane;                
-let biomeTemplates = {                 
+export let streetlightTemplate = null; 
+export let activeBiome = 'nature'; 
+export let groundPlane;
+
+let storedBordaDoAsfalto = 9.5; // Valor de fallback seguro
+
+let biomeTemplates = {
     nature: { models: [], details: [] },
     suburban: { models: [], details: [] },
     industrial: { models: [], details: [] },
     city: { models: [], details: [] }
 };
 
-// Altera o bioma, pinta o chão, névoa e ajusta a iluminação dinamicamente de acordo com as novas regras
+// Altera o bioma, pinta o chão, névoa e ajusta a iluminação dinamicamente
 export function setActiveBiome(biomeName) {
     activeBiome = biomeName;
-    
+
     // 1. PINTA O CHÃO INFINITO DE ACORDO COM A FASE
     if (groundPlane && groundPlane.material) {
         let groundColor = 0x557a2b; // Verde Grama (Floresta)
@@ -147,7 +156,7 @@ export function setActiveBiome(biomeName) {
                 scene.fog = null; // Sem neblina na cidade
             }
 
-            // Atualiza o background e a cor da névoa (caso ela esteja instanciada)
+            // Atualiza o background e a cor da névoa
             scene.background.setHex(skyColor);
             if (scene.fog) {
                 scene.fog.color.setHex(skyColor);
@@ -156,31 +165,24 @@ export function setActiveBiome(biomeName) {
     }
 }
 
-// --- CONTROLE DE GERADORES ESPECIAIS ---
-export let shouldSpawnMacumbaTriangle = false;
-
-export function setSpawnMacumbaTriangle(state) {
-    shouldSpawnMacumbaTriangle = state;
-}
-
 // Função para o main.js ativar/desativar o estado do freio
-export function setBrakingState(state) {
-    isBraking = state;
+export function setBrakingState(state) { 
+    isBraking = state; 
 }
 
 // === PAINEL DE CONTROLE DA RUA ===
 const LARGURA = 4.5; 
-const ALTURA = 3.5;  
+const ALTURA = 3.5;
 const PIECE_LENGTH = 4.5; 
 const NUM_PIECES = 85; 
-const ROAD_HEIGHT = 2.4; 
+const ROAD_HEIGHT = 2.4;
 
-export function createWorld(scene) {
+export function createWorld(scene) { 
     roadGroup = new THREE.Group();
     scene.add(roadGroup);
 
     const loader = new GLTFLoader();
-    
+
     // --- CARREGAMENTO ASSÍNCRONO DOS ASSETS ---
     Object.keys(BIOME_CONFIG).forEach((bKey) => {
         const conf = BIOME_CONFIG[bKey];
@@ -201,34 +203,34 @@ export function createWorld(scene) {
                 biomeTemplates[bKey].details.push(detail);
             });
         });
-
-        // --- CRIAÇÃO DO CHÃO INFINITO ---
-        const groundGeo = new THREE.PlaneGeometry(1000, 1000);
-        const groundMat = new THREE.MeshLambertMaterial({ color: 0x557a2b }); 
-        groundPlane = new THREE.Mesh(groundGeo, groundMat);
-        groundPlane.rotation.x = -Math.PI / 2;
-    
-        groundPlane.position.set(0, 2, 0); 
-        groundPlane.receiveShadow = true;
-        scene.add(groundPlane);
-        
-        // --- CARREGAMENTO DO POSTE DE LUZ URBANO ---
-        const sLoader = new GLTFLoader();
-        sLoader.load(
-            'assets/sprite/road/light-square.glb',
-            (gltf) => {
-                const streetlight = gltf.scene;
-                normalizeScenery(streetlight, 5.0);
-                streetlightTemplate = streetlight;
-                console.log("Template do Poste de Luz carregado com sucesso!");
-            },
-            undefined,
-            (error) => {
-                console.error("Erro ao carregar o poste de luz:", error);
-            }
-        );
     });
 
+    // --- CRIAÇÃO DO CHÃO INFINITO (SÓ UMA VEZ FORA DO LOOP!) ---
+    const groundGeo = new THREE.PlaneGeometry(1000, 1000);
+    const groundMat = new THREE.MeshLambertMaterial({ color: 0x557a2b }); 
+    groundPlane = new THREE.Mesh(groundGeo, groundMat);
+    groundPlane.rotation.x = -Math.PI / 2;
+
+    groundPlane.position.set(0, 2, 0); 
+    groundPlane.receiveShadow = true;
+    scene.add(groundPlane);
+    
+    // --- CARREGAMENTO DO POSTE DE LUZ URBANO (SÓ UMA VEZ FORA DO LOOP!) ---
+    loader.load(
+        'assets/sprite/road/light-square.glb',
+        (gltf) => {
+            const streetlight = gltf.scene;
+            normalizeScenery(streetlight, 5.0);
+            streetlightTemplate = streetlight;
+            console.log("Template do Poste de Luz carregado com sucesso!");
+        },
+        undefined,
+        (error) => {
+            console.error("Erro ao carregar o poste de luz:", error);
+        }
+    );
+
+    // --- CARREGAMENTO DA RUA ---
     loader.load(
         'assets/sprite/road/road-side.gltf', 
         function (gltf) {
@@ -237,6 +239,7 @@ export function createWorld(scene) {
 
             const box = new THREE.Box3().setFromObject(baseModel);
             const bordaDoAsfalto = box.max.x; 
+            storedBordaDoAsfalto = bordaDoAsfalto; // Salva globalmente para o alinhamento da Macumba
 
             const posicaoDaLinha = 3.5; 
             const lineXPositions = [-posicaoDaLinha, posicaoDaLinha]; 
@@ -271,7 +274,12 @@ export function createWorld(scene) {
                 roadGroup.add(leftSide);
                 roadGroup.add(rightSide);
 
-                const pieceObj = { left: leftSide, right: rightSide };
+                const pieceObj = { 
+                    left: leftSide, 
+                    right: rightSide,
+                    leftDecorations: [], // Arrays de controle para a floresta caótica
+                    rightDecorations: []
+                };
                 
                 decoratePiece(pieceObj, activeBiome, i);
                 roadPieces.push(pieceObj);
@@ -284,16 +292,15 @@ export function createWorld(scene) {
     );
 }
 
-export function updateWorld() {
+export function updateWorld() { 
     if (!roadGroup) return;
 
-    // Decide a velocidade alvo de cruzeiro com base na câmera ativa de forma suave
-    // 0: Isometric (0.50), 1: Topdown (0.65), 2: Chase (0.75)
+    // Decide a velocidade alvo de cruzeiro com base na câmera ativa
     let targetCruiseSpeed = 0.50;
     if (currentPresetIndex === 1) targetCruiseSpeed = 0.65;
     if (currentPresetIndex === 2) targetCruiseSpeed = 0.75;
 
-    // 1. Interpolação de velocidade baseada no freio ou na velocidade alvo da câmera
+    // Interpolação de velocidade baseada no freio ou na velocidade alvo da câmera
     if (isBraking) {
         currentSpeed += (0.01 - currentSpeed) * DECEL_RATE;
     } else {
@@ -319,18 +326,28 @@ export function updateWorld() {
         }
     });
 
+    // Atualiza os elementos dinâmicos especiais (como o triângulo de macumbas)
+    for (let i = activeSpecialScenery.length - 1; i >= 0; i--) {
+        const group = activeSpecialScenery[i];
+        group.position.z -= currentSpeed;
+        if (group.position.z < -ROAD_LENGTH / 2) {
+            scene.remove(group);
+            activeSpecialScenery.splice(i, 1);
+        }
+    }
+
     updateTireMarks();
 }
 
-function normalizeScenery(model, targetSize) {
+function normalizeScenery(model, targetSize) { 
     model.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(model);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-    const maxDim = Math.max(size.x, size.y, size.z);
+    const box = new THREE.Box3().setFromObject(model); 
+    const size = new THREE.Vector3(); 
+    box.getSize(size); 
+    const maxDim = Math.max(size.x, size.y, size.z); 
     const scaleFactor = (maxDim > 0.01) ? (targetSize / maxDim) : 1;
     model.scale.set(scaleFactor, scaleFactor, scaleFactor);
-    
+
     model.traverse((child) => {
         if (child.isMesh) {
             child.castShadow = true;
@@ -339,14 +356,25 @@ function normalizeScenery(model, targetSize) {
     });
 }
 
-function decoratePiece(piece, biomeName, pieceIndex) {
-    if (piece.leftDecor) piece.left.remove(piece.leftDecor);
-    if (piece.rightDecor) piece.right.remove(piece.rightDecor);
-    if (piece.leftDetail) piece.left.remove(piece.leftDetail);
+function decoratePiece(piece, biomeName, pieceIndex) { 
+    // 1. Limpa todas as decorações antigas existentes para evitar memory leaks
+    if (piece.leftDecor) piece.left.remove(piece.leftDecor); 
+    if (piece.rightDecor) piece.right.remove(piece.rightDecor); 
+    if (piece.leftDetail) piece.left.remove(piece.leftDetail); 
     if (piece.rightDetail) piece.right.remove(piece.rightDetail);
 
+    if (piece.leftDecorations) {
+        piece.leftDecorations.forEach(item => piece.left.remove(item));
+    }
+    piece.leftDecorations = [];
+
+    if (piece.rightDecorations) {
+        piece.rightDecorations.forEach(item => piece.right.remove(item));
+    }
+    piece.rightDecorations = [];
+
     const templates = biomeTemplates[biomeName];
-    
+
     if (!templates || templates.models.length === 0) {
         setTimeout(() => {
             decoratePiece(piece, biomeName, pieceIndex);
@@ -354,128 +382,150 @@ function decoratePiece(piece, biomeName, pieceIndex) {
         return;
     }
 
-    // --- EXECUÇÃO DO GRUPO ESPECIAL AOS 15 SEGUNDOS ---
-    let spawnMacumbaNow = false;
-    if (biomeName === 'nature' && shouldSpawnMacumbaTriangle) {
-        spawnMacumbaNow = true;
-        shouldSpawnMacumbaTriangle = false; // Consome o evento para gerar apenas uma vez
-    }
+    const isStraightView = (currentPresetIndex === 1 || currentPresetIndex === 2);
 
-    if (spawnMacumbaNow) {
-        const macumbaTemp = templates.details.find(d => d.name === 'macumba');
-        if (macumbaTemp) {
-            const group = new THREE.Group();
-            group.position.set(0.4, 0.5, -1); // Mesmo ponto de ancoragem do poste
+    // --- COMPORTAMENTO PROCEDURAL EXCLUSIVO PARA BIOMA NATURE (PONTO 5) ---
+    if (biomeName === 'nature') {
+        // Unifica árvores e decorações rasteiras num único pool, excluindo a macumba (que virou evento fixo de 15s)
+        const naturePool = [...templates.models, ...templates.details.filter(d => d.name !== 'macumba')];
 
-            for (let j = 0; j < 3; j++) {
-                const pot = macumbaTemp.clone();
-                pot.scale.set(0.65, 0.65, 0.65);
-                
-                // Distribuição trigonométrica para formar um triângulo no asfalto
-                const offsetX = (j === 0) ? 0 : (j === 1 ? 0.35 : -0.35);
-                const offsetZ = (j === 0) ? -0.4 : (j === 1 ? 0.25 : 0.25);
-                
-                pot.position.set(offsetX, 0, offsetZ);
-                group.add(pot);
+        if (naturePool.length > 0) {
+            // Sorteia de 1 a 3 itens para cada lado da calçada
+            const leftCount = Math.floor(Math.random() * 3) + 1;
+            const rightCount = Math.floor(Math.random() * 3) + 1;
+
+            // Dispersão Caótica - Lado Esquerdo
+            for (let k = 0; k < leftCount; k++) {
+                const temp = naturePool[Math.floor(Math.random() * naturePool.length)];
+                const clone = temp.clone();
+
+                // Posição irregular: localX varia de -3.5 (terra/grama) até 0.1 (podendo invadir levemente o concreto)
+                const localX = -3.5 + Math.random() * 3.6;
+                const localZ = (Math.random() - 0.5) * 4.0;
+
+                // Variação orgânica de tamanho (0.8x a 1.25x) e rotação livre (360 graus)
+                const randScale = 0.8 + Math.random() * 0.45;
+                clone.scale.multiplyScalar(randScale);
+                clone.rotation.y = Math.random() * Math.PI * 2;
+
+                clone.position.set(localX, 0.4, localZ);
+                piece.left.add(clone);
+                piece.leftDecorations.push(clone);
             }
-            piece.leftDetail = group;
-            piece.left.add(piece.leftDetail);
+
+            // Dispersão Caótica - Lado Direito
+            for (let k = 0; k < rightCount; k++) {
+                const temp = naturePool[Math.floor(Math.random() * naturePool.length)];
+                const clone = temp.clone();
+
+                const localX = -3.5 + Math.random() * 3.6;
+                const localZ = (Math.random() - 0.5) * 4.0;
+
+                const randScale = 0.8 + Math.random() * 0.45;
+                clone.scale.multiplyScalar(randScale);
+                clone.rotation.y = Math.random() * Math.PI * 2;
+
+                clone.position.set(localX, 0.4, localZ);
+                piece.right.add(clone);
+                piece.rightDecorations.push(clone);
+            }
         }
     } 
-    // --- FLORESTA TOTALMENTE EMBALHARADA E ORGÂNICA (BIOMA NATUREZA) ---
-    else if (biomeName === 'nature') {
-        const combinedAssets = [...templates.models, ...templates.details];
-        
-        if (combinedAssets.length > 0) {
-            // LADO ESQUERDO: Instancia dois itens quaisquer espalhados de forma mais rente à calçada
-            const left1 = combinedAssets[Math.floor(Math.random() * combinedAssets.length)];
-            piece.leftDecor = left1.clone();
-            // Dispersão aleatória rente à calçada (X de -2.0 a -3.5) e Z (-2.0 a +2.0)
-            piece.leftDecor.position.set(-2.0 - Math.random() * 1.5, 0.4, (Math.random() - 0.5) * 4.0);
-            piece.leftDecor.scale.multiplyScalar(0.8 + Math.random() * 0.45);
-            piece.leftDecor.rotation.y = Math.random() * Math.PI * 2;
-            piece.left.add(piece.leftDecor);
-
-            const left2 = combinedAssets[Math.floor(Math.random() * combinedAssets.length)];
-            piece.leftDetail = left2.clone();
-            piece.leftDetail.position.set(-2.0 - Math.random() * 1.5, 0.4, (Math.random() - 0.5) * 4.0);
-            piece.leftDetail.scale.multiplyScalar(0.8 + Math.random() * 0.45);
-            piece.leftDetail.rotation.y = Math.random() * Math.PI * 2;
-            piece.left.add(piece.leftDetail);
-
-            // LADO DIREITO: Espalhamento igual e rente à calçada
-            const right1 = combinedAssets[Math.floor(Math.random() * combinedAssets.length)];
-            piece.rightDecor = right1.clone();
-            piece.rightDecor.position.set(-2.0 - Math.random() * 1.5, 0.4, (Math.random() - 0.5) * 4.0);
-            piece.rightDecor.scale.multiplyScalar(0.8 + Math.random() * 0.45);
-            piece.rightDecor.rotation.y = Math.random() * Math.PI * 2;
-            piece.right.add(piece.rightDecor);
-
-            const right2 = combinedAssets[Math.floor(Math.random() * combinedAssets.length)];
-            piece.rightDetail = right2.clone();
-            piece.rightDetail.position.set(-2.0 - Math.random() * 1.5, 0.4, (Math.random() - 0.5) * 4.0);
-            piece.rightDetail.scale.multiplyScalar(0.8 + Math.random() * 0.45);
-            piece.rightDetail.rotation.y = Math.random() * Math.PI * 2;
-            piece.right.add(piece.rightDetail);
-        }
-    } 
-    // --- COMPORTAMENTO PADRÃO NAS CIDADES E SUBÚRBIOS ---
+    // --- COMPORTAMENTO PADRÃO DOS BIOMAS URBANOS (SUBURBAN, INDUSTRIAL, CITY) ---
     else {
+        let shouldSpawnDecor = true;
         const spacingModulo = (biomeName === 'suburban') ? 5 : 7;
-        const shouldSpawnDecor = (pieceIndex % spacingModulo === 0);
+        shouldSpawnDecor = (pieceIndex % spacingModulo === 0);
 
-        const isStraightView = (currentPresetIndex === 1 || currentPresetIndex === 2);
-        const offsetVal = isStraightView ? -3.2 : -5.0;
+        let xOffsetLeft = isStraightView ? -3.2 : -5.0;
+        let xOffsetRight = isStraightView ? -3.2 : -5.0;
 
         if (shouldSpawnDecor) {
             const leftModelTemp = templates.models[Math.floor(Math.random() * templates.models.length)];
             piece.leftDecor = leftModelTemp.clone();
-            piece.leftDecor.position.set(offsetVal, 0.6, 0);
+            piece.leftDecor.position.set(xOffsetLeft, 0.6, 0);
             piece.left.add(piece.leftDecor);
 
             const rightModelTemp = templates.models[Math.floor(Math.random() * templates.models.length)];
             piece.rightDecor = rightModelTemp.clone();
-            piece.rightDecor.position.set(offsetVal, 0.6, 0);
+            piece.rightDecor.position.set(xOffsetRight, 0.6, 0);
             piece.right.add(piece.rightDecor);
         }
 
-        const shouldSpawnStreetlight = streetlightTemplate && (pieceIndex % 18 === 0);
+        // Geração de Postes e Detalhes Urbanos Rasteiros
+        const isUrban = (biomeName !== 'nature');
+        const shouldSpawnStreetlight = isUrban && streetlightTemplate && (pieceIndex % 18 === 0);
 
         if (shouldSpawnStreetlight) {
             piece.leftDetail = streetlightTemplate.clone();
-            piece.leftDetail.position.set(0.4, 0.5, -1);
+            piece.leftDetail.position.set(0.4, 0.5, -1); 
             piece.leftDetail.rotation.y = -Math.PI / 2; 
             piece.left.add(piece.leftDetail);
 
             piece.rightDetail = streetlightTemplate.clone();
-            piece.rightDetail.position.set(0.4, 0.4, -1);
+            piece.rightDetail.position.set(0.4, 0.4, -1); 
             piece.rightDetail.rotation.y = -Math.PI / 2; 
             piece.right.add(piece.rightDetail);
-        } else if (templates.details.length > 0) {
-            const allowedDetails = templates.details.filter(d => d.name !== 'macumba');
-            if (allowedDetails.length > 0) {
-                const leftDetailTemp = allowedDetails[Math.floor(Math.random() * allowedDetails.length)];
-                piece.leftDetail = leftDetailTemp.clone();
-                piece.leftDetail.position.set(-0.6, 0.4, 0);
-                piece.left.add(piece.leftDetail);
+        }
+        else if (templates.details.length > 0) {
+            const leftDetailTemp = templates.details[Math.floor(Math.random() * templates.details.length)];
+            piece.leftDetail = leftDetailTemp.clone();
+            piece.leftDetail.position.set(-0.6, 0.4, 0);
+            piece.left.add(piece.leftDetail);
 
-                const rightDetailTemp = allowedDetails[Math.floor(Math.random() * allowedDetails.length)];
-                piece.rightDetail = rightDetailTemp.clone();
-                piece.rightDetail.position.set(-0.6, 0.4, 0);
-                piece.right.add(piece.rightDetail);
-            }
+            const rightDetailTemp = templates.details[Math.floor(Math.random() * templates.details.length)];
+            piece.rightDetail = rightDetailTemp.clone();
+            piece.rightDetail.position.set(-0.6, 0.4, 0);
+            piece.right.add(piece.rightDetail);
         }
     }
 }
-export function resetWorldScenery() {
+
+// SPAWN DINÂMICO DOS 3 POTES DE MACUMBA ALINHADOS EM TRIÂNGULO (PONTO 5.1)
+export function spawnMacumbaSpecialEvent() {
+    const template = biomeTemplates.nature.details.find(d => d.name === 'macumba');
+    if (!template) return;
+
+    const group = new THREE.Group();
+    
+    // Forma o triângulo perfeito com 3 potes clonados
+    for (let j = 0; j < 3; j++) {
+        const pot = template.clone();
+        pot.scale.set(0.65, 0.65, 0.65);
+        const offsetX = (j === 0) ? 0 : (j === 1 ? 0.25 : -0.25);
+        const offsetZ = (j === 0) ? -0.2 : (j === 1 ? 0.15 : 0.15);
+        pot.position.set(offsetX, 0, offsetZ);
+        group.add(pot);
+    }
+
+    // Escolhe aleatoriamente a calçada esquerda ou direita para spawnar
+    const isLeft = Math.random() < 0.5;
+    
+    // Alinha perfeitamente sobre a calçada usando a mesma matemática de margem do poste de luz
+    const spawnX = isLeft ? (-storedBordaDoAsfalto + 0.4) : (storedBordaDoAsfalto - 0.4);
+
+    group.position.set(spawnX, ROAD_HEIGHT, 120); // Surge lá atrás no horizonte (Z = 120)
+    scene.add(group);
+    activeSpecialScenery.push(group);
+
+    console.log("Macumba especial de 15 segundos gerada na calçada!");
+}
+
+export function resetWorldScenery() { 
     if (!roadGroup) return;
 
     activeBiome = 'nature'; 
 
+    // Limpa os elementos especiais (Macumbas) remanescentes na cena
+    activeSpecialScenery.forEach(mesh => {
+        scene.remove(mesh);
+    });
+    activeSpecialScenery = [];
+
     let lineIndex = 0;
     const posicaoDaLinha = 3.5; 
     const lineXPositions = [-posicaoDaLinha, posicaoDaLinha]; 
-    
+
     for (let x of lineXPositions) {
         for (let z = -ROAD_LENGTH / 2; z < ROAD_LENGTH / 2; z += 6) {
             if (dashedLines[lineIndex]) {
@@ -494,7 +544,7 @@ export function resetWorldScenery() {
     });
 }
 
-export function addTireMark(x) {
+export function addTireMark(x) { 
     if (!roadGroup) return;
 
     const geometry = new THREE.PlaneGeometry(0.3, 1.2); 
@@ -507,19 +557,19 @@ export function addTireMark(x) {
         polygonOffsetFactor: -1,
         polygonOffsetUnits: -1
     });
-    
+
     const mark = new THREE.Mesh(geometry, material);
     mark.rotation.x = -Math.PI / 2; 
-    
+
     mark.position.set(x, 2.41, 0); 
-    
+
     roadGroup.add(mark);
     tireMarks.push(mark);
 }
 
-function updateTireMarks() {
+function updateTireMarks() { 
     for (let i = tireMarks.length - 1; i >= 0; i--) {
-        const mark = tireMarks[i];
+        const mark = tireMarks[i]; 
         mark.position.z -= currentSpeed;
 
         if (mark.position.z < -ROAD_LENGTH / 2) {
