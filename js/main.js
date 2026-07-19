@@ -268,8 +268,13 @@ function startGameSequence() {
 
             nextSpecialEvent = 'garbage';
             startSpecialEventTimer();
-        }, 500);
 
+            // --- NOVO EVENTO AGENDADO: Grupo especial aos 15s de corrida ---
+            setTimeout(() => {
+                if (isPlaying && !isGameOver) {
+                    setSpawnMacumbaTriangle(true);
+                }
+            }, 15000);
     }, 4500);
 }
 
@@ -314,7 +319,8 @@ function startObstacleSpawner() {
 
     function scheduleNextObstacle() {
         if (!isPlaying || isGameOver) return;
-        const randomDelay = Math.random() * 1000 + 1800; 
+        // Tempo de atraso aleatório configurado entre 1000ms (1s) e 2500ms (2.5s)
+        const randomDelay = Math.random() * 1500 + 1000; 
         spawnerTimeout = setTimeout(() => {
             spawnObstacle();
             scheduleNextObstacle();
@@ -323,7 +329,6 @@ function startObstacleSpawner() {
 
     scheduleNextObstacle();
 }
-
 function triggerGameOver() {
     isGameOver = true;
     isPlaying = false;
@@ -499,7 +504,7 @@ function getCartoonSpriteForFood(itemFile, isGarbage) {
     return 'lucas1.png'; 
 }
 
-// NOVA LÓGICA DO DIÁLOGO CARTOON 
+// NOVA LÓGICA DO DIÁLOGO CARTOON (Sem re-pop do mesmo personagem)
 function triggerToast(penalty, msg, fileOrSpriteName, isManualSprite = false, isGarbage = false) {
     if (toastTimeout) clearTimeout(toastTimeout);
 
@@ -510,39 +515,46 @@ function triggerToast(penalty, msg, fileOrSpriteName, isManualSprite = false, is
         spriteName = getCartoonSpriteForFood(fileOrSpriteName, isGarbage); 
     }
     
-    toastCharImg.src = `assets/sprite/cartoon/${spriteName}`;
-    toastText.innerText = msg;
+    // Identifica se o personagem já está visível para evitar o re-pop
+    const isSameSprite = (toastCharImg.src.endsWith(spriteName) && toastLayer.style.opacity === '1');
 
-    // 1. Limpa todas as classes de layout e animação anteriores
-    toastLayer.classList.remove('hidden', 'flex-row', 'flex-row-reverse');
-    toastCharImg.classList.remove('slide-in-left', 'slide-in-right');
+    if (!isSameSprite) {
+        toastCharImg.src = `assets/sprite/cartoon/${spriteName}`;
+        toastLayer.classList.remove('hidden', 'flex-row', 'flex-row-reverse');
+        toastCharImg.classList.remove('slide-in-left', 'slide-in-right');
+        
+        // Força recálculo do DOM para reiniciar animação de entrada do personagem
+        void toastLayer.offsetWidth;
+
+        if (spriteName.toLowerCase().includes('leo')) {
+            toastLayer.classList.add('flex-row-reverse');
+            toastCharImg.classList.add('slide-in-right');
+        } else {
+            toastLayer.classList.add('flex-row');
+            toastCharImg.classList.add('slide-in-left');
+        }
+    }
+
+    // Reseta e reconfigura o balão e a seta
     toastArrow.className = ''; 
     toastBalloon.classList.remove('balloon-pop');
 
-    // Força o navegador a recalcular o DOM para reiniciar a animação do zero
-    void toastLayer.offsetWidth;
-
-    // 2. Define o lado com base no personagem
     if (spriteName.toLowerCase().includes('leo')) {
-        // Léo fala da Direita
-        toastLayer.classList.add('flex-row-reverse');
         toastArrow.classList.add('toast-arrow-right');
-        toastCharImg.classList.add('slide-in-right');
     } else {
-        // Lucas fala da Esquerda
-        toastLayer.classList.add('flex-row');
         toastArrow.classList.add('toast-arrow-left');
-        toastCharImg.classList.add('slide-in-left');
     }
 
-    // 3. Adiciona a classe que faz o balão inflar
+    toastText.innerText = msg;
+
+    // Força recálculo para inflar o balão de fala
+    void toastBalloon.offsetWidth;
     toastBalloon.classList.add('balloon-pop');
 
-    // Garante que o toast esteja visível
     toastLayer.style.display = 'flex';
     toastLayer.style.opacity = '1';
 
-    // 4. Oculta suavemente após 3 segundos
+    // Oculta suavemente após 3 segundos
     toastTimeout = setTimeout(() => {
         toastLayer.style.transition = 'opacity 0.3s ease';
         toastLayer.style.opacity = '0';
@@ -554,7 +566,6 @@ function triggerToast(penalty, msg, fileOrSpriteName, isManualSprite = false, is
         }, 300);
     }, 3000);
 }
-
 function updateLeaderboardUI() {
     const rankingList = document.getElementById('ranking-list');
     if (!rankingList) return;
