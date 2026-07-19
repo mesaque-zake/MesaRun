@@ -249,10 +249,10 @@ function startGameSequence() {
     footer.classList.add('hidden'); 
     if (topLogos) topLogos.classList.add('hidden');
 
-    triggerToast(0, "3...", "leo.png", true);
+    triggerToast(0, "Aperte os cinto! 3...", "leo.png", true);
 
     setTimeout(() => { 
-        triggerToast(0, "2...", "leo.png", true);
+        triggerToast(0, "Ligue o motor! 2...", "leo.png", true);
     }, 1000);
 
     setTimeout(() => { 
@@ -702,7 +702,7 @@ function triggerSpecialEvent() {
     if (itemTimeout) clearTimeout(itemTimeout);
 
     if (nextSpecialEvent === 'garbage') {
-        triggerToast(0, "CUIDADO! CAMINHÃO DE LIXO À FRENTE!", "leo2.png", true);
+        triggerToast(0, "CUIDADO! Caminhão de lixo à frente!", "leo2.png", true);
 
         setTimeout(() => {
             if (isPlaying && !isGameOver) {
