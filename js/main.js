@@ -1,84 +1,95 @@
-import { initEngine, renderEngine, scene, triggerCameraShake, setCameraFlippedState, triggerCrashZoom, resetCrashZoom, setCameraPreset } from './engine.js';
-import { createWorld, updateWorld, setBrakingState, currentSpeed, setActiveBiome, setSpawnMacumbaTriangle } from './world.js';
-import { createEntities, movePlayerLeft, movePlayerRight, updateEntities, spawnObstacle, checkCollisions, resetEntities, spawnItem, checkItemCollections, setTruckTransitionTurn, updateLaneOffsets, spawnGarbageTruck, activeGarbageTruck, spawnPoliceCar, activePolice, spawnAmbulance } from './entities.js';
+import { initEngine, renderEngine, scene, triggerCameraShake,
+setCameraFlippedState, triggerCrashZoom, resetCrashZoom, setCameraPreset } from
+'./engine.js'; 
+import { createWorld, updateWorld, setBrakingState, currentSpeed,
+setActiveBiome, spawnMacumbaSpecialEvent } from './world.js'; 
+import { createEntities, movePlayerLeft,
+movePlayerRight, updateEntities, spawnObstacle, checkCollisions, resetEntities,
+spawnItem, checkItemCollections, setTruckTransitionTurn, updateLaneOffsets,
+spawnGarbageTruck, activeGarbageTruck, spawnPoliceCar, activePolice,
+spawnAmbulance } from './entities.js';
 
 // Elementos da Interface (UI)
-const menuBackdrop = document.getElementById('menu-backdrop');
-const mainMenu = document.getElementById('main-menu');
-const rankingModal = document.getElementById('ranking-modal');
-const footer = document.getElementById('footer');
-const countdownLayer = document.getElementById('countdown-layer');
-const countdownText = document.getElementById('countdown-text');
-const hudLayer = document.getElementById('hud-layer');
+const menuBackdrop = document.getElementById('menu-backdrop'); 
+const mainMenu = document.getElementById('main-menu'); 
+const rankingModal = document.getElementById('ranking-modal'); 
+const footer = document.getElementById('footer'); 
+const countdownLayer = document.getElementById('countdown-layer'); 
+const countdownText = document.getElementById('countdown-text'); 
+const hudLayer = document.getElementById('hud-layer'); 
 const gameWrapper = document.getElementById('game-wrapper');
 
 // Elementos do Painel de Configurações
-const btnSettings = document.getElementById('btn-settings');
-const settingsModal = document.getElementById('settings-modal');
-const btnCloseSettings = document.getElementById('btn-close-settings');
-const btnCloseSettingsX = document.getElementById('btn-close-settings-x'); // Novo X
-const btnCamIsometric = document.getElementById('btn-cam-isometric');
-const btnCamTopdown = document.getElementById('btn-cam-topdown');
+const btnSettings = document.getElementById('btn-settings'); 
+const settingsModal = document.getElementById('settings-modal'); 
+const btnCloseSettings = document.getElementById('btn-close-settings'); 
+const btnCloseSettingsX = document.getElementById('btn-close-settings-x'); 
+const btnCamIsometric = document.getElementById('btn-cam-isometric'); 
+const btnCamTopdown = document.getElementById('btn-cam-topdown'); 
 const btnCamChase = document.getElementById('btn-cam-chase');
 
 // --- VARIÁVEIS DO CRONÔMETRO DE BIOMAS ---
-let biomeTimer = null;                         
+let biomeTimer = null;
 const BIOMES_LIST = ['nature', 'suburban', 'industrial', 'city']; 
-let currentBiomeIndex = 0;                     
-let isFlipped = false;                         
+let currentBiomeIndex = 0;
+let isFlipped = false;
 
 // Botões
-const btnPlay = document.getElementById('btn-play');
-const btnRanking = document.getElementById('btn-ranking');
-const btnCloseRanking = document.getElementById('btn-close-ranking');
-const btnCloseRankingX = document.getElementById('btn-close-ranking-x'); // Novo X
+const btnPlay = document.getElementById('btn-play'); 
+const btnRanking = document.getElementById('btn-ranking'); 
+const btnCloseRanking = document.getElementById('btn-close-ranking'); 
+const btnCloseRankingX = document.getElementById('btn-close-ranking-x'); 
 
 // --- CONTROLE DE FREIOS ---
-let isGameOver = false;     
+let isGameOver = false;
 let isPlaying = false; 
-let brakeCharges = 3;       
-let activeBraking = false;  
-let spawnerTimeout = null;  
+let brakeCharges = 3;
+let activeBraking = false;
+let spawnerTimeout = null;
 
 // Elementos da UI de Game Over
-const gameOverModal = document.getElementById('game-over-modal');
-const gameOverScore = document.getElementById('game-over-score');
-const recordForm = document.getElementById('record-form');
+const gameOverModal = document.getElementById('game-over-modal'); 
+const gameOverScore = document.getElementById('game-over-score'); 
+const recordForm = document.getElementById('record-form'); 
 const playerNameInput = document.getElementById('player-name-input');
 
 // Elementos da UI do Velocímetro
-const speedometerLayer = document.getElementById('speedometer-layer');
+const speedometerLayer = document.getElementById('speedometer-layer'); 
 const speedText = document.getElementById('speed-text');
 
 // Botões do Game Over
-const btnRestart = document.getElementById('btn-restart');
-const btnBackMenu = document.getElementById('btn-back-menu');
+const btnRestart = document.getElementById('btn-restart'); 
+const btnBackMenu = document.getElementById('btn-back-menu'); 
 const btnSaveRecord = document.getElementById('btn-save-record');
 
 // Elementos da UI de Pontuação e Avisos (HUD)
-const scoreLayer = document.getElementById('score-layer');
+const scoreLayer = document.getElementById('score-layer'); 
 const scoreText = document.getElementById('score-text');
 
-// Novos Elementos do Toast
-const toastLayer = document.getElementById('toast-layer');
-const toastText = document.getElementById('toast-text');
+// Elementos do Toast
+const toastLayer = document.getElementById('toast-layer'); 
+const toastText = document.getElementById('toast-text'); 
 const toastCharImg = document.getElementById('toast-char-img'); 
-const toastBalloon = document.getElementById('toast-balloon');
+const toastBalloon = document.getElementById('toast-balloon'); 
 const toastArrow = document.getElementById('toast-arrow');
 
 // --- VARIÁVEIS DE PONTUAÇÃO E SPAWN ---
-let score = 0;              
-let itemTimeout = null;     
-let toastTimeout = null;    
-let leaderboard = JSON.parse(localStorage.getItem('mesarun_ranking')) || [];
+let score = 0;
+let itemTimeout = null;
+let toastTimeout = null;
+let leaderboard = JSON.parse(localStorage.getItem('mesarun_ranking')) || []; 
 let lastTime = performance.now();
 
-// --- CONTROLE DE EVENTOS ESPECIAIS (UNIFICADO) ---
-let specialEventTimeout = null;  
-let nextSpecialEvent = 'garbage'; 
-let policeWarningIndex = 0;      
+// Controle do personagem ativo para evitar pop repetido
+let lastSpriteName = "";
 
-function init() {
+// --- CONTROLE DE EVENTOS ESPECIAIS (UNIFICADO) ---
+let specialEventTimeout = null;
+let macumbaTimeout = null;
+let nextSpecialEvent = 'garbage'; 
+let policeWarningIndex = 0;
+
+function init() { 
     console.log("MesaRun! Motor 3D Inicializado...");
     initEngine();
 
@@ -93,13 +104,13 @@ function init() {
     gameLoop();
 }
 
-function setupMenu() {
+function setupMenu() { 
     // Abrir o Ranking
-    btnRanking.addEventListener('click', () => {
+    btnRanking.addEventListener('click', () => { 
         updateLeaderboardUI(); 
         mainMenu.classList.add('hidden');
-        rankingModal.classList.remove('hidden');
-        rankingModal.classList.add('flex');
+        rankingModal.classList.remove('hidden'); 
+        rankingModal.classList.add('flex'); 
     });
 
     // Fechar o Ranking (Voltar ou X)
@@ -111,7 +122,7 @@ function setupMenu() {
     btnCloseRanking.addEventListener('click', closeRankingAction);
     btnCloseRankingX.addEventListener('click', closeRankingAction);
 
-    // Clicar no Play (Inicia a sequência)
+    // Clicar no Play
     btnPlay.addEventListener('click', () => {
         startGameSequence();
     });
@@ -232,11 +243,11 @@ function setupMenu() {
     });
 }
 
-function startGameSequence() {
-    const topLogos = document.getElementById('top-logos');
+function startGameSequence() { 
+    const topLogos = document.getElementById('top-logos'); 
     mainMenu.classList.add('hidden');
-    footer.classList.add('hidden');
-    if (topLogos) topLogos.classList.add('hidden'); // Oculta as logos do topo também
+    footer.classList.add('hidden'); 
+    if (topLogos) topLogos.classList.add('hidden');
 
     triggerToast(0, "3...", "leo.png", true);
 
@@ -252,10 +263,10 @@ function startGameSequence() {
         triggerToast(0, "Colete o máximo de doações que conseguir!", "lucas.png", true);
     }, 3000);
 
-    setTimeout(() => { // Temporizador A (Início da transição)
+    setTimeout(() => {
         menuBackdrop.style.opacity = '0'; 
 
-        setTimeout(() => { // Temporizador B (Entrada do HUD e Gameplay)
+        setTimeout(() => {
             menuBackdrop.classList.add('hidden'); 
             hudLayer.classList.remove('hidden'); 
             speedometerLayer.classList.remove('hidden');
@@ -266,21 +277,20 @@ function startGameSequence() {
             startItemSpawner();
             startBiomeTimer(); 
 
-            nextSpecialEvent = 'garbage';
-            startSpecialEventTimer();
-
-            // --- NOVO EVENTO AGENDADO: Grupo especial aos 15s de corrida ---
-            setTimeout(() => { // Temporizador C (Nascimento especial)
+            // Ativa o spawn fixo da Macumba aos 15 segundos de jogo
+            macumbaTimeout = setTimeout(() => {
                 if (isPlaying && !isGameOver) {
-                    setSpawnMacumbaTriangle(true);
+                    spawnMacumbaSpecialEvent();
                 }
             }, 15000);
 
-        }, 500); // Fechamento do Temporizador B
-    }, 4500); // Fechamento do Temporizador A
-} // Fechamento da função startGameSequence
+            nextSpecialEvent = 'garbage';
+            startSpecialEventTimer();
+        }, 500);
+    }, 4500);
+}
 
-function gameLoop(time) {
+function gameLoop(time) { 
     requestAnimationFrame(gameLoop);
 
     const deltaTime = Math.min((time - lastTime) / 1000, 0.1); 
@@ -308,21 +318,21 @@ function gameLoop(time) {
 
 window.onload = init;
 
-function updateBrakeUI() {
+function updateBrakeUI() { 
     const iconIndex = brakeCharges + 1; 
-    const icon = document.getElementById(`brake-icon-${iconIndex}`);
+    const icon = document.getElementById(`brake-icon-${iconIndex}`); 
     if (icon) {
-        icon.classList.add('grayscale', 'opacity-30');
-    }
+        icon.classList.add('grayscale', 'opacity-30'); 
+    } 
 }
 
-function startObstacleSpawner() {
+function startObstacleSpawner() { 
     if (spawnerTimeout) clearTimeout(spawnerTimeout);
 
     function scheduleNextObstacle() {
         if (!isPlaying || isGameOver) return;
-        // Tempo de atraso aleatório configurado entre 1000ms (1s) e 2500ms (2.5s)
-        const randomDelay = Math.random() * 1500 + 1000; 
+        // Tráfego ligeiramente mais intenso e divertido
+        const randomDelay = Math.random() * 800 + 1300; 
         spawnerTimeout = setTimeout(() => {
             spawnObstacle();
             scheduleNextObstacle();
@@ -331,12 +341,14 @@ function startObstacleSpawner() {
 
     scheduleNextObstacle();
 }
-function triggerGameOver() {
-    isGameOver = true;
+
+function triggerGameOver() { 
+    isGameOver = true; 
     isPlaying = false;
 
     if (biomeTimer) clearInterval(biomeTimer);
     if (specialEventTimeout) clearTimeout(specialEventTimeout);
+    if (macumbaTimeout) clearTimeout(macumbaTimeout);
 
     triggerCameraShake(1.5); 
 
@@ -360,13 +372,14 @@ function triggerGameOver() {
     }, 2000);
 }
 
-function restartGame() {
+function restartGame() { 
     gameOverModal.classList.add('hidden');
-    gameOverModal.classList.remove('flex');
-    menuBackdrop.classList.add('hidden');
-    if (biomeTimer) clearInterval(biomeTimer);
-    if (itemTimeout) clearTimeout(itemTimeout);
+    gameOverModal.classList.remove('flex'); 
+    menuBackdrop.classList.add('hidden'); 
+    if (biomeTimer) clearInterval(biomeTimer); 
+    if (itemTimeout) clearTimeout(itemTimeout); 
     if (specialEventTimeout) clearTimeout(specialEventTimeout);
+    if (macumbaTimeout) clearTimeout(macumbaTimeout);
 
     isGameOver = false;
     brakeCharges = 3;
@@ -384,13 +397,14 @@ function restartGame() {
     startGameSequence();
 }
 
-function backToMenu() {
-    const topLogos = document.getElementById('top-logos');
-    gameOverModal.classList.add('hidden');
-    gameOverModal.classList.remove('flex');
-    if (biomeTimer) clearInterval(biomeTimer);
-    if (itemTimeout) clearTimeout(itemTimeout);
+function backToMenu() { 
+    const topLogos = document.getElementById('top-logos'); 
+    gameOverModal.classList.add('hidden'); 
+    gameOverModal.classList.remove('flex'); 
+    if (biomeTimer) clearInterval(biomeTimer); 
+    if (itemTimeout) clearTimeout(itemTimeout); 
     if (specialEventTimeout) clearTimeout(specialEventTimeout);
+    if (macumbaTimeout) clearTimeout(macumbaTimeout);
 
     scoreLayer.classList.add('hidden');
 
@@ -413,11 +427,11 @@ function backToMenu() {
 
     mainMenu.classList.remove('hidden');
     footer.classList.remove('hidden');
-    if (topLogos) topLogos.classList.remove('hidden'); // Volta as logos pro menu
+    if (topLogos) topLogos.classList.remove('hidden'); 
     menuBackdrop.style.opacity = '1';
 }
 
-function startItemSpawner() {
+function startItemSpawner() { 
     if (itemTimeout) clearTimeout(itemTimeout);
 
     function scheduleNextItem() {
@@ -432,9 +446,9 @@ function startItemSpawner() {
     scheduleNextItem();
 }
 
-function handleItemCollection(item, itemX) {
-    score += item.value;
-    if (score < 0) score = 0;
+function handleItemCollection(item, itemX) { 
+    score += item.value; 
+    if (score < 0) score = 0; 
     scoreText.innerText = `${score} kg`;
 
     triggerFloatingText(item.value, itemX);
@@ -444,8 +458,8 @@ function handleItemCollection(item, itemX) {
     }
 }
 
-function triggerFloatingText(value, xPos) {
-    const wrapper = document.getElementById('game-wrapper');
+function triggerFloatingText(value, xPos) { 
+    const wrapper = document.getElementById('game-wrapper'); 
     if (!wrapper) return;
 
     const textDiv = document.createElement('div');
@@ -477,7 +491,7 @@ function triggerFloatingText(value, xPos) {
     }, 800);
 }
 
-function getCartoonSpriteForFood(itemFile, isGarbage) {
+function getCartoonSpriteForFood(itemFile, isGarbage) { 
     if (isGarbage) return 'lucas2.png'; 
     if (!itemFile) return 'lucas1.png';
 
@@ -506,8 +520,8 @@ function getCartoonSpriteForFood(itemFile, isGarbage) {
     return 'lucas1.png'; 
 }
 
-// NOVA LÓGICA DO DIÁLOGO CARTOON (Sem re-pop do mesmo personagem)
-function triggerToast(penalty, msg, fileOrSpriteName, isManualSprite = false, isGarbage = false) {
+// LÓGICA DO DIÁLOGO CARTOON
+function triggerToast(penalty, msg, fileOrSpriteName, isManualSprite = false, isGarbage = false) { 
     if (toastTimeout) clearTimeout(toastTimeout);
 
     let spriteName = "";
@@ -516,43 +530,42 @@ function triggerToast(penalty, msg, fileOrSpriteName, isManualSprite = false, is
     } else {
         spriteName = getCartoonSpriteForFood(fileOrSpriteName, isGarbage); 
     }
-    
-    // Identifica se o personagem já está visível para evitar o re-pop
-    const isSameSprite = (toastCharImg.src.endsWith(spriteName) && toastLayer.style.opacity === '1');
 
-    if (!isSameSprite) {
-        toastCharImg.src = `assets/sprite/cartoon/${spriteName}`;
-        toastLayer.classList.remove('hidden', 'flex-row', 'flex-row-reverse');
-        toastCharImg.classList.remove('slide-in-left', 'slide-in-right');
-        
-        // Força recálculo do DOM para reiniciar animação de entrada do personagem
-        void toastLayer.offsetWidth;
-
-        if (spriteName.toLowerCase().includes('leo')) {
-            toastLayer.classList.add('flex-row-reverse');
-            toastCharImg.classList.add('slide-in-right');
-        } else {
-            toastLayer.classList.add('flex-row');
-            toastCharImg.classList.add('slide-in-left');
-        }
-    }
-
-    // Reseta e reconfigura o balão e a seta
-    toastArrow.className = ''; 
-    toastBalloon.classList.remove('balloon-pop');
-
-    if (spriteName.toLowerCase().includes('leo')) {
-        toastArrow.classList.add('toast-arrow-right');
-    } else {
-        toastArrow.classList.add('toast-arrow-left');
-    }
+    const isSameSprite = (lastSpriteName === spriteName) && (!toastLayer.classList.contains('hidden'));
+    lastSpriteName = spriteName;
 
     toastText.innerText = msg;
 
-    // Força recálculo para inflar o balão de fala
-    void toastBalloon.offsetWidth;
-    toastBalloon.classList.add('balloon-pop');
+    if (isSameSprite) {
+        // Personagem idêntico: mantém a imagem estática e apenas dá o pop elástico no balão!
+        toastBalloon.classList.remove('balloon-pop');
+        void toastBalloon.offsetWidth; // Força re-render
+        toastBalloon.classList.add('balloon-pop');
+    } else {
+        // Personagem mudou ou o balão estava escondido: faz animação de entrada completa!
+        toastCharImg.src = `assets/sprite/cartoon/${spriteName}`;
 
+        toastLayer.classList.remove('hidden', 'flex-row', 'flex-row-reverse');
+        toastCharImg.classList.remove('slide-in-left', 'slide-in-right');
+        toastArrow.className = ''; 
+        toastBalloon.classList.remove('balloon-pop');
+
+        void toastLayer.offsetWidth; // Força re-render
+
+        if (spriteName.toLowerCase().includes('leo')) {
+            toastLayer.classList.add('flex-row-reverse');
+            toastArrow.classList.add('toast-arrow-right');
+            toastCharImg.classList.add('slide-in-right');
+        } else {
+            toastLayer.classList.add('flex-row');
+            toastArrow.classList.add('toast-arrow-left');
+            toastCharImg.classList.add('slide-in-left');
+        }
+
+        toastBalloon.classList.add('balloon-pop');
+    }
+
+    // Exibe o Toast
     toastLayer.style.display = 'flex';
     toastLayer.style.opacity = '1';
 
@@ -565,11 +578,13 @@ function triggerToast(penalty, msg, fileOrSpriteName, isManualSprite = false, is
             toastLayer.style.display = '';
             toastLayer.classList.add('hidden');
             toastLayer.style.transition = '';
+            lastSpriteName = ""; // Limpa o estado quando some de vez
         }, 300);
     }, 3000);
 }
-function updateLeaderboardUI() {
-    const rankingList = document.getElementById('ranking-list');
+
+function updateLeaderboardUI() { 
+    const rankingList = document.getElementById('ranking-list'); 
     if (!rankingList) return;
 
     rankingList.innerHTML = '';
@@ -593,10 +608,10 @@ function updateLeaderboardUI() {
     });
 }
 
-function checkAndShowRecordForm() {
+function checkAndShowRecordForm() { 
     if (score <= 0) {
-        recordForm.classList.add('hidden');
-        recordForm.classList.remove('flex');
+        recordForm.classList.add('hidden'); 
+        recordForm.classList.remove('flex'); 
         return;
     }
 
@@ -612,11 +627,11 @@ function checkAndShowRecordForm() {
     }
 }
 
-function saveRecord() {
+function saveRecord() { 
     const name = playerNameInput.value.trim().toUpperCase();
-    if (!name) {
-        alert("Por favor, digite seu nome!");
-        return;
+    if (!name) { 
+        alert("Por favor, digite seu nome!"); 
+        return; 
     }
 
     leaderboard.push({ name: name, score: score });
@@ -632,7 +647,7 @@ function saveRecord() {
     alert("Recorde gravado com sucesso!");
 }
 
-function startBiomeTimer() {
+function startBiomeTimer() { 
     if (biomeTimer) clearInterval(biomeTimer);
 
     currentBiomeIndex = 0;
@@ -648,8 +663,8 @@ function startBiomeTimer() {
     }, 60000); 
 }
 
-function triggerBiomeTransition() {
-    if (spawnerTimeout) clearTimeout(spawnerTimeout);
+function triggerBiomeTransition() { 
+    if (spawnerTimeout) clearTimeout(spawnerTimeout); 
     if (itemTimeout) clearTimeout(itemTimeout);
 
     setTruckTransitionTurn(isFlipped ? -0.20 : 0.20);
@@ -669,11 +684,10 @@ function triggerBiomeTransition() {
                 startItemSpawner();
             }
         }, 1500);
-
     }, 1500);
 }
 
-function startSpecialEventTimer() {
+function startSpecialEventTimer() { 
     if (specialEventTimeout) clearTimeout(specialEventTimeout);
 
     specialEventTimeout = setTimeout(() => {
@@ -683,8 +697,8 @@ function startSpecialEventTimer() {
     }, 30000); 
 }
 
-function triggerSpecialEvent() {
-    if (spawnerTimeout) clearTimeout(spawnerTimeout);
+function triggerSpecialEvent() { 
+    if (spawnerTimeout) clearTimeout(spawnerTimeout); 
     if (itemTimeout) clearTimeout(itemTimeout);
 
     if (nextSpecialEvent === 'garbage') {
@@ -734,21 +748,21 @@ function triggerSpecialEvent() {
     }
 }
 
-function handleSpecialEventComplete() {
+function handleSpecialEventComplete() { 
     if (isPlaying && !isGameOver) {
-        startObstacleSpawner();
-        startItemSpawner();
-        startSpecialEventTimer();
-    }
+        startObstacleSpawner(); 
+        startItemSpawner(); 
+        startSpecialEventTimer(); 
+    } 
 }
 
-function updateCameraButtonsUI(activeIndex) {
-    const buttons = [btnCamIsometric, btnCamTopdown, btnCamChase];
-    buttons.forEach((btn, index) => {
-        if (index === activeIndex) {
-            btn.className = "w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 rounded-lg border border-slate-950 shadow-[2px_2px_0px_#020617] active:translate-y-[2px] active:shadow-none transition-all text-[10px]";
-        } else {
-            btn.className = "w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-1.5 rounded-lg border border-slate-950 shadow-[2px_2px_0px_#020617] active:translate-y-[2px] active:shadow-none transition-all text-[10px]";
-        }
-    });
+function updateCameraButtonsUI(activeIndex) { 
+    const buttons = [btnCamIsometric, btnCamTopdown, btnCamChase]; 
+    buttons.forEach((btn, index) => { 
+        if (index === activeIndex) { 
+            btn.className = "w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 rounded-lg border border-slate-950 shadow-[2px_2px_0px_#020617] active:translate-y-[2px] active:shadow-none transition-all text-[10px]"; 
+        } else { 
+            btn.className = "w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-1.5 rounded-lg border border-slate-950 shadow-[2px_2px_0px_#020617] active:translate-y-[2px] active:shadow-none transition-all text-[10px]"; 
+        } 
+    }); 
 }
