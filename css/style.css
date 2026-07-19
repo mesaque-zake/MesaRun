@@ -87,3 +87,10 @@
     border-left: 12px solid #ffffff;
     border-bottom: 8px solid transparent;
 }
+
+/* Vidro fosco leve e translúcido (Glassmorphism) */
+.glass-backdrop {
+    background: rgba(15, 23, 42, 0.45) !important; /* Cor de fundo escura bem leve (quase transparente) */
+    backdrop-filter: blur(6px) !important; /* Desfoque de fundo fosco sutil */
+    -webkit-backdrop-filter: blur(6px) !important; /* Suporte para navegadores iOS/Safari */
+}
