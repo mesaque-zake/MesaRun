@@ -156,6 +156,13 @@ export function setActiveBiome(biomeName) {
     }
 }
 
+// --- CONTROLE DE GERADORES ESPECIAIS ---
+export let shouldSpawnMacumbaTriangle = false;
+
+export function setSpawnMacumbaTriangle(state) {
+    shouldSpawnMacumbaTriangle = state;
+}
+
 // Função para o main.js ativar/desativar o estado do freio
 export function setBrakingState(state) {
     isBraking = state;
@@ -347,124 +354,119 @@ function decoratePiece(piece, biomeName, pieceIndex) {
         return;
     }
 
-    let shouldSpawnDecor = true;
-    if (biomeName !== 'nature') {
-        const spacingModulo = (biomeName === 'suburban') ? 5 : 7;
-        shouldSpawnDecor = (pieceIndex % spacingModulo === 0);
+    // --- EXECUÇÃO DO GRUPO ESPECIAL AOS 15 SEGUNDOS ---
+    let spawnMacumbaNow = false;
+    if (biomeName === 'nature' && shouldSpawnMacumbaTriangle) {
+        spawnMacumbaNow = true;
+        shouldSpawnMacumbaTriangle = false; // Consome o evento para gerar apenas uma vez
     }
 
-    // --- CÁLCULO DE AFASTAMENTO E ESPALHAMENTO (Alinhamento Inteligente por Câmera) ---
-    let xOffsetLeft = -2.3;
-    let xOffsetRight = -2.3; 
-    let zOffsetLeft = 0;
-    let zOffsetRight = 0;
+    if (spawnMacumbaNow) {
+        const macumbaTemp = templates.details.find(d => d.name === 'macumba');
+        if (macumbaTemp) {
+            const group = new THREE.Group();
+            group.position.set(0.4, 0.5, -1); // Mesmo ponto de ancoragem do poste
 
-    const isStraightView = (currentPresetIndex === 1 || currentPresetIndex === 2);
-
-    if (biomeName === 'nature') {
-        // Se a câmera olhar reto (topdown/chase), limita o espalhamento para as árvores margearem a calçada
-        const spread = isStraightView ? 0.2 : 1.0;
-        xOffsetLeft = -2.1 - Math.random() * spread;
-        xOffsetRight = -2.1 - Math.random() * spread;
-        zOffsetLeft = (Math.random() - 0.5) * 4.0;
-        zOffsetRight = (Math.random() - 0.5) * 4.0;
-    } else {
-        // Se a câmera olhar reto (topdown/chase), cola as construções na calçada (-3.4)
-        // Se a câmera for Isométrica de lado, mantém o recuo de -5.0 para não obstruir
-        const offsetVal = isStraightView ? -3.2 : -5.0;
-        xOffsetLeft = offsetVal;
-        xOffsetRight = offsetVal;
-    }
-
-    if (shouldSpawnDecor) {
-        const leftModelTemp = templates.models[Math.floor(Math.random() * templates.models.length)];
-        piece.leftDecor = leftModelTemp.clone();
-        piece.leftDecor.position.set(xOffsetLeft, 0.6, zOffsetLeft);
-        piece.left.add(piece.leftDecor);
-
-        const rightModelTemp = templates.models[Math.floor(Math.random() * templates.models.length)];
-        piece.rightDecor = rightModelTemp.clone();
-        piece.rightDecor.position.set(xOffsetRight, 0.6, zOffsetRight);
-        piece.right.add(piece.rightDecor);
-    }
-
-    if (templates.details.length > 0 || (biomeName !== 'nature' && streetlightTemplate)) {
+            for (let j = 0; j < 3; j++) {
+                const pot = macumbaTemp.clone();
+                pot.scale.set(0.65, 0.65, 0.65);
+                
+                // Distribuição trigonométrica para formar um triângulo no asfalto
+                const offsetX = (j === 0) ? 0 : (j === 1 ? 0.35 : -0.35);
+                const offsetZ = (j === 0) ? -0.4 : (j === 1 ? 0.25 : 0.25);
+                
+                pot.position.set(offsetX, 0, offsetZ);
+                group.add(pot);
+            }
+            piece.leftDetail = group;
+            piece.left.add(piece.leftDetail);
+        }
+    } 
+    // --- FLORESTA TOTALMENTE EMBALHARADA E ORGÂNICA (BIOMA NATUREZA) ---
+    else if (biomeName === 'nature') {
+        const combinedAssets = [...templates.models, ...templates.details];
         
-        const isUrban = (biomeName !== 'nature');
-        const shouldSpawnStreetlight = isUrban && streetlightTemplate && (pieceIndex % 18 === 0);
+        if (combinedAssets.length > 0) {
+            // LADO ESQUERDO: Instancia dois itens quaisquer espalhados aleatoriamente
+            const left1 = combinedAssets[Math.floor(Math.random() * combinedAssets.length)];
+            piece.leftDecor = left1.clone();
+            // Dispersão aleatória lateral (X de -2.2 a -6.5) e Z (-2.2 a +2.2)
+            piece.leftDecor.position.set(-2.2 - Math.random() * 4.3, 0.4, (Math.random() - 0.5) * 4.5);
+            piece.leftDecor.scale.multiplyScalar(0.8 + Math.random() * 0.45);
+            piece.leftDecor.rotation.y = Math.random() * Math.PI * 2;
+            piece.left.add(piece.leftDecor);
+
+            const left2 = combinedAssets[Math.floor(Math.random() * combinedAssets.length)];
+            piece.leftDetail = left2.clone();
+            piece.leftDetail.position.set(-2.2 - Math.random() * 4.3, 0.4, (Math.random() - 0.5) * 4.5);
+            piece.leftDetail.scale.multiplyScalar(0.8 + Math.random() * 0.45);
+            piece.leftDetail.rotation.y = Math.random() * Math.PI * 2;
+            piece.left.add(piece.leftDetail);
+
+            // LADO DIREITO: Espalhamento igual (aproveita o espelhamento do container piece.right)
+            const right1 = combinedAssets[Math.floor(Math.random() * combinedAssets.length)];
+            piece.rightDecor = right1.clone();
+            piece.rightDecor.position.set(-2.2 - Math.random() * 4.3, 0.4, (Math.random() - 0.5) * 4.5);
+            piece.rightDecor.scale.multiplyScalar(0.8 + Math.random() * 0.45);
+            piece.rightDecor.rotation.y = Math.random() * Math.PI * 2;
+            piece.right.add(piece.rightDecor);
+
+            const right2 = combinedAssets[Math.floor(Math.random() * combinedAssets.length)];
+            piece.rightDetail = right2.clone();
+            piece.rightDetail.position.set(-2.2 - Math.random() * 4.3, 0.4, (Math.random() - 0.5) * 4.5);
+            piece.rightDetail.scale.multiplyScalar(0.8 + Math.random() * 0.45);
+            piece.rightDetail.rotation.y = Math.random() * Math.PI * 2;
+            piece.right.add(piece.rightDetail);
+        }
+    } 
+    // --- COMPORTAMENTO PADRÃO NAS CIDADES E SUBÚRBIOS ---
+    else {
+        const spacingModulo = (biomeName === 'suburban') ? 5 : 7;
+        const shouldSpawnDecor = (pieceIndex % spacingModulo === 0);
+
+        const isStraightView = (currentPresetIndex === 1 || currentPresetIndex === 2);
+        const offsetVal = isStraightView ? -3.2 : -5.0;
+
+        if (shouldSpawnDecor) {
+            const leftModelTemp = templates.models[Math.floor(Math.random() * templates.models.length)];
+            piece.leftDecor = leftModelTemp.clone();
+            piece.leftDecor.position.set(offsetVal, 0.6, 0);
+            piece.left.add(piece.leftDecor);
+
+            const rightModelTemp = templates.models[Math.floor(Math.random() * templates.models.length)];
+            piece.rightDecor = rightModelTemp.clone();
+            piece.rightDecor.position.set(offsetVal, 0.6, 0);
+            piece.right.add(piece.rightDecor);
+        }
+
+        const shouldSpawnStreetlight = streetlightTemplate && (pieceIndex % 18 === 0);
 
         if (shouldSpawnStreetlight) {
-            // Calçada Esquerda: Braço apontando para a pista (direita)
             piece.leftDetail = streetlightTemplate.clone();
-            piece.leftDetail.position.set(0.4, 0.5, -1); // Alinhado em cima do concreto
+            piece.leftDetail.position.set(0.4, 0.5, -1);
             piece.leftDetail.rotation.y = -Math.PI / 2; 
             piece.left.add(piece.leftDetail);
 
-            // Calçada Direita: Braço apontando para a pista (esquerda)
             piece.rightDetail = streetlightTemplate.clone();
-            piece.rightDetail.position.set(0.4, 0.4, -1); // Alinhado em cima do concreto
+            piece.rightDetail.position.set(0.4, 0.4, -1);
             piece.rightDetail.rotation.y = -Math.PI / 2; 
             piece.right.add(piece.rightDetail);
-        }
-        else if (templates.details.length > 0) {
-        
-            const hasMacumbaLeft = biomeName === 'nature' && Math.random() < 0.05 && templates.details.some(d => d.name === 'macumba');
-        
-            if (hasMacumbaLeft) {
-                const macumbaTemp = templates.details.find(d => d.name === 'macumba');
-                const group = new THREE.Group();
-                group.position.set(-0.6, 0.4, 0);
-
-                for (let j = 0; j < 3; j++) {
-                    const pot = macumbaTemp.clone();
-                    pot.scale.set(0.65, 0.65, 0.65);
-                    const offsetX = (j === 0) ? 0 : (j === 1 ? 0.25 : -0.25);
-                    const offsetZ = (j === 0) ? -0.2 : (j === 1 ? 0.15 : 0.15);
-                    pot.position.set(offsetX, 0, offsetZ);
-                    group.add(pot);
-                }
-                piece.leftDetail = group;
+        } else if (templates.details.length > 0) {
+            const allowedDetails = templates.details.filter(d => d.name !== 'macumba');
+            if (allowedDetails.length > 0) {
+                const leftDetailTemp = allowedDetails[Math.floor(Math.random() * allowedDetails.length)];
+                piece.leftDetail = leftDetailTemp.clone();
+                piece.leftDetail.position.set(-0.6, 0.4, 0);
                 piece.left.add(piece.leftDetail);
-            } else {
-                const allowedDetails = templates.details.filter(d => d.name !== 'macumba');
-                if (allowedDetails.length > 0) {
-                    const leftDetailTemp = allowedDetails[Math.floor(Math.random() * allowedDetails.length)];
-                    piece.leftDetail = leftDetailTemp.clone();
-                    piece.leftDetail.position.set(-0.6, 0.4, 0);
-                    piece.left.add(piece.leftDetail);
-                }
-            }
 
-            const hasMacumbaRight = biomeName === 'nature' && Math.random() < 0.05 && templates.details.some(d => d.name === 'macumba');
-
-            if (hasMacumbaRight) {
-                const macumbaTemp = templates.details.find(d => d.name === 'macumba');
-                const group = new THREE.Group();
-                group.position.set(-0.6, 0.4, 0);
-
-                for (let j = 0; j < 3; j++) {
-                    const pot = macumbaTemp.clone();
-                    pot.scale.set(0.65, 0.65, 0.65);
-                    const offsetX = (j === 0) ? 0 : (j === 1 ? 0.25 : -0.25);
-                    const offsetZ = (j === 0) ? -0.2 : (j === 1 ? 0.15 : 0.15);
-                    pot.position.set(offsetX, 0, offsetZ);
-                    group.add(pot);
-                }
-                piece.rightDetail = group;
+                const rightDetailTemp = allowedDetails[Math.floor(Math.random() * allowedDetails.length)];
+                piece.rightDetail = rightDetailTemp.clone();
+                piece.rightDetail.position.set(-0.6, 0.4, 0);
                 piece.right.add(piece.rightDetail);
-            } else {
-                const allowedDetails = templates.details.filter(d => d.name !== 'macumba');
-                if (allowedDetails.length > 0) {
-                    const rightDetailTemp = allowedDetails[Math.floor(Math.random() * allowedDetails.length)];
-                    piece.rightDetail = rightDetailTemp.clone();
-                    piece.rightDetail.position.set(-0.6, 0.4, 0);
-                    piece.right.add(piece.rightDetail);
-                }
             }
         }
     }
 }
-
 export function resetWorldScenery() {
     if (!roadGroup) return;
 
