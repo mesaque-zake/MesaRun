@@ -1,46 +1,94 @@
-/* Respiração do Personagem (3% de distorção) */ @keyframes breathing { 0%, 100%
-{ transform: scaleY(1) scaleX(1); } 50% { transform: scaleY(0.97) scaleX(1.03);
-} } .breathing-anim { animation: breathing 3s infinite ease-in-out;
-transform-origin: bottom center; }
+/* ========================================= NOVAS ANIMAÇÕES E REGRAS DOS TOASTS
+========================================= */
 
-/* Animações de Entrada (Slide in) */ @keyframes slideInLeft { from { transform:
-translateX(-150%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+/* Respiração do Personagem (3% de distorção) */ 
+@keyframes breathing { 
+    0%, 100% { transform: scaleY(1) scaleX(1); } 
+    50% { transform: scaleY(0.97) scaleX(1.03); } 
+} 
 
-@keyframes slideInRight { from { transform: translateX(150%); opacity: 0; } to {
-transform: translateX(0); opacity: 1; } }
+.breathing-anim { 
+    animation: breathing 3s infinite ease-in-out;
+    transform-origin: bottom center; 
+}
 
-.slide-in-left { animation: slideInLeft 0.4s cubic-bezier(0.25, 1, 0.5, 1)
-forwards; } .slide-in-right { animation: slideInRight 0.4s
-cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+/* Animações de Entrada (Slide in) */ 
+@keyframes slideInLeft { 
+    from { transform: translateX(-150%); opacity: 0; } 
+    to { transform: translateX(0); opacity: 1; } 
+}
 
-/* Pop do Balão (Surgindo com 0.3s de atraso) */ @keyframes balloonPop { from {
-transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes slideInRight { 
+    from { transform: translateX(150%); opacity: 0; } 
+    to { transform: translateX(0); opacity: 1; } 
+}
 
-.balloon-pop { opacity: 0; /* Começa escondido / animation: balloonPop 0.3s
-cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.3s forwards; transform-origin: bottom
-left; / Padrão para quando está na esquerda */ }
+.slide-in-left { 
+    animation: slideInLeft 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards; 
+} 
 
-/* Inverte a origem do crescimento do balão quando for na direita
-(flex-row-reverse) */ #toast-layer.flex-row-reverse .balloon-pop {
-transform-origin: bottom right; }
+.slide-in-right { 
+    animation: slideInRight 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards; 
+}
 
-/* ========================================= AS SETAS MÁGICAS DO BALÃO (CSS
-Triangles) ========================================= */
+/* Pop do Balão (Surgindo com 0.3s de atraso) */ 
+@keyframes balloonPop { 
+    from { transform: scale(0); opacity: 0; } 
+    to { transform: scale(1); opacity: 1; } 
+}
 
-/* Limpeza geral da seta */ #toast-arrow::before, #toast-arrow::after { content:
-''; position: absolute; bottom: 0; }
+.balloon-pop { 
+    opacity: 0; /* Começa escondido */
+    animation: balloonPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.3s forwards; 
+    transform-origin: bottom left; /* Padrão para quando está na esquerda */
+}
 
-/* SETA PARA ESQUERDA (Apontando pro Lucas) / .toast-arrow-left::before { /
-Borda grossa / left: -14px; border-top: 8px solid transparent;
-border-right: 12px solid #020617; / Cor da borda Tailwind (slate-950) /
-border-bottom: 8px solid transparent; } .toast-arrow-left::after { /
-Preenchimento branco */ left: -8px; bottom: 3px; border-top: 6px solid
-transparent; border-right: 10px solid #ffffff; border-bottom: 6px solid
-transparent; }
+/* Inverte a origem do crescimento do balão quando for na direita (flex-row-reverse) */ 
+#toast-layer.flex-row-reverse .balloon-pop {
+    transform-origin: bottom right; 
+}
 
-/* SETA PARA A DIREITA (Apontando pro Léo) / .toast-arrow-right::before { /
-Borda grossa / right: -14px; border-top: 8px solid transparent;
-border-left: 12px solid #020617; border-bottom: 8px solid transparent; }
-.toast-arrow-right::after { / Preenchimento branco */ right: -8px; bottom: 3px;
-border-top: 6px solid transparent; border-left: 10px solid #ffffff;
-border-bottom: 6px solid transparent; }
+/* ========================================= AS SETAS MÁGICAS DO BALÃO (CSS Triangles) ========================================= */
+
+/* Limpeza geral da seta */ 
+#toast-arrow::before, #toast-arrow::after { 
+    content: ''; 
+    position: absolute; 
+    bottom: 0; 
+}
+
+/* SETA PARA ESQUERDA (Apontando pro Lucas) */ 
+.toast-arrow-left::before { 
+    /* Borda grossa */ 
+    left: -14px; 
+    border-top: 8px solid transparent;
+    border-right: 12px solid #020617; /* Cor da borda Tailwind (slate-950) */
+    border-bottom: 8px solid transparent; 
+} 
+
+.toast-arrow-left::after { 
+    /* Preenchimento branco */ 
+    left: -8px; 
+    bottom: 3px; 
+    border-top: 6px solid transparent;
+    border-right: 10px solid #ffffff; 
+    border-bottom: 6px solid transparent; 
+}
+
+/* SETA PARA A DIREITA (Apontando pro Léo) */ 
+.toast-arrow-right::before { 
+    /* Borda grossa */ 
+    right: -14px; 
+    border-top: 8px solid transparent;
+    border-left: 12px solid #020617; 
+    border-bottom: 8px solid transparent; 
+}
+
+.toast-arrow-right::after { 
+    /* Preenchimento branco */ 
+    right: -8px; 
+    bottom: 3px; 
+    border-top: 6px solid transparent;
+    border-left: 10px solid #ffffff; 
+    border-bottom: 6px solid transparent; 
+}
