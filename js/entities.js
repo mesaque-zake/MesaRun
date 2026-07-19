@@ -1,34 +1,30 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { currentSpeed, addTireMark } from './world.js';
-import { scene } from './engine.js'; 
+import { scene } from './engine.js';
 
 export let truckModel = null;
 
 // --- VARIÁVEIS E FROTA DE OBSTÁCULOS ---
 const OBSTACLE_NAMES = [
-    'hatchback-sports.glb',
-    'sedan.glb',
-    'suv-luxury.glb',
-    'suv.glb',
-    'taxi.glb',
-    'truck-flat.glb',
-    'truck.glb',
-    'van.glb'
+    'hatchback-sports.glb', 'sedan.glb', 'suv-luxury.glb', 'suv.glb', 'taxi.glb',
+    'truck-flat.glb', 'truck.glb', 'van.glb'
 ];
-export let obstacleTemplates = []; 
-let activeObstacles = [];         
+export let obstacleTemplates = [];
+let activeObstacles = [];
 let garbageTruckTemplate = null;
 const loader = new GLTFLoader();
 
 // --- CATEGORIAS E ARRAYS DE ALIMENTOS (MESA BRASIL) ---
 const HEALTHY_FOODS = [
-    'apple.glb', 'banana.glb', 'beet.glb', 'broccoli.glb', 'cabbage.glb', 'can-small.glb', 'can.glb', 
-    'carrot.glb', 'carton-small.glb', 'carton.glb', 'cauliflower.glb', 'cherries.glb', 'coconut.glb', 
-    'corn.glb', 'egg.glb', 'eggplant.glb', 'fish.glb', 'grapes.glb', 'leek.glb', 'lemon.glb', 
-    'loaf-baguette.glb', 'loaf-round.glb', 'loaf.glb', 'meat-raw.glb', 'onion.glb', 'orange.glb', 
-    'paprika.glb', 'pear.glb', 'pepper.glb', 'pineapple.glb', 'pudding.glb', 'pumpkin.glb', 
-    'radish.glb', 'soda-bottle.glb', 'soda-can.glb', 'strawberry.glb', 'sub.glb', 'tomato.glb', 'watermelon.glb'
+    'apple.glb', 'banana.glb', 'beet.glb', 'broccoli.glb', 'cabbage.glb',
+    'can-small.glb', 'can.glb', 'carrot.glb', 'carton-small.glb', 'carton.glb',
+    'cauliflower.glb', 'cherries.glb', 'coconut.glb', 'corn.glb', 'egg.glb',
+    'eggplant.glb', 'fish.glb', 'grapes.glb', 'leek.glb', 'lemon.glb',
+    'loaf-baguette.glb', 'loaf-round.glb', 'loaf.glb', 'meat-raw.glb', 'onion.glb',
+    'orange.glb', 'paprika.glb', 'pear.glb', 'pepper.glb', 'pineapple.glb',
+    'pudding.glb', 'pumpkin.glb', 'radish.glb', 'soda-bottle.glb', 'soda-can.glb',
+    'strawberry.glb', 'sub.glb', 'tomato.glb', 'watermelon.glb'
 ];
 
 const NEGATIVE_FOODS = [
@@ -62,50 +58,47 @@ const NEGATIVE_FOODS = [
     { file: 'mushroom-half.glb', msg: 'NÃO COLETAMOS ISSO!', penalty: 50 },
     { file: 'mushroom.glb', msg: 'NÃO COLETAMOS ISSO!', penalty: 50 },
     { file: 'styrofoam-dinner.glb', msg: 'O Mesa entregava isso em 1994, hoje não mais!', penalty: 0 },
-    
-    // NOVO LOTE: Adicionando dejetos específicos do Boss para carregamento correto
     { file: 'egg-half.glb', msg: 'Espera... isso aí é lixo!', penalty: 20 },
     { file: 'fish-bones.glb', msg: 'Espera... isso aí é lixo!', penalty: 20 },
     { file: 'soda-can-crushed.glb', msg: 'Espera... isso aí é lixo!', penalty: 20 }
 ];
 
 // --- SISTEMA EVENTO CAMINHÃO DE LIXO (BOSS) ---
-export let activeGarbageTruck = null;   
-let garbageTruckState = 'idle';        
-let garbageCount = 0;                  
-let garbageDropTimer = 0;              
-let garbageLaneTimer = 0;              
-let garbageTargetLaneX = 0;            
+export let activeGarbageTruck = null;
+let garbageTruckState = 'idle';
+let garbageCount = 0;
+let garbageDropTimer = 0;
+let garbageLaneTimer = 0;
+let garbageTargetLaneX = 0;
+let onEventCompleteCallback = null;
 
 // --- SISTEMA EVENTO CARRO DE POLÍCIA ---
-let policeTemplate = null;             
-export let activePolice = null;        
-let policeState = 'idle';              
-let policeTargetX = 0;                 
-let onPoliceCompleteCallback = null;   
+let policeTemplate = null;
+export let activePolice = null;
+let policeState = 'idle';
+let policeTargetX = 0;
+let onPoliceCompleteCallback = null;
 
 // --- SISTEMA EVENTO AMBULÂNCIA ---
 let ambulanceTemplate = null;
 export let activeAmbulance = null;
 let ambulanceState = 'idle';
-let ambulancePassed = false; 
+let ambulancePassed = false;
 let onAmbulanceCompleteCallback = null;
 
-let onEventCompleteCallback = null; 
-
-export let healthyTemplates = {};      
-export let negativeTemplates = {};     
-export let activeItems = [];           
+export let healthyTemplates = {};
+export let negativeTemplates = {};
+export let activeItems = [];
 
 // Permite ao main.js controlar o ângulo de curva do caminhão
-export function setTruckTransitionTurn(angle) {
-    targetTruckRotationY = angle;
+export function setTruckTransitionTurn(angle) { 
+    targetTruckRotationY = angle; 
 }
 
-const itemBox = new THREE.Box3();    
+const itemBox = new THREE.Box3();
 
 // --- FUNÇÃO AUXILIAR: TAMANHO UNIVERSAL COM SUPORTE A MATRIZ ATIVA ---
-function normalizeAndBrighten(model, targetSize = 3.2) {
+function normalizeAndBrighten(model, targetSize = 3.2) { 
     scene.add(model);
     model.updateMatrixWorld(true);
 
@@ -114,7 +107,7 @@ function normalizeAndBrighten(model, targetSize = 3.2) {
 
     const size = new THREE.Vector3();
     box.getSize(size);
-    
+
     const maxDim = Math.max(size.x, size.y, size.z);
     const scaleFactor = (maxDim > 0.01) ? (targetSize / maxDim) : 1;
     model.scale.set(scaleFactor, scaleFactor, scaleFactor);
@@ -131,34 +124,34 @@ function normalizeAndBrighten(model, targetSize = 3.2) {
     });
 }
 
-const playerBox = new THREE.Box3();
+const playerBox = new THREE.Box3(); 
 const obstacleBox = new THREE.Box3();
 
-// --- SISTEMA DE PISTAS (Inicializado em 7 para evitar pulos laterais) ---
+// --- SISTEMA DE PISTAS ---
 export let currentLanes = [7, 0, -7]; 
-let currentLaneIndex = 1;        
-let targetX = 0.0;               
+let currentLaneIndex = 1;
+let targetX = 0.0;
 
 // --- FISICA DE CURVA EM TRANSIÇÃO ---
-let targetTruckRotationY = 0; 
+let targetTruckRotationY = 0;
 
-export function updateLaneOffsets(isFlipped) {
+export function updateLaneOffsets(isFlipped) { 
     currentLanes = [7, 0, -7]; 
 }
 
-const LERP_SPEED = 0.15;          
-const MAX_ROLL = 0.10;           
-const ROLL_SPEED = 0.08;         
+const LERP_SPEED = 0.15;
+const MAX_ROLL = 0.10;
+const ROLL_SPEED = 0.08;
 
-export function createEntities(scene) {
+export function createEntities(scene) { 
     // CAMINHÃO DO JOGADOR
     loader.load(
-        'assets/model/car/mycar/truck.glb',
-        function (gltf) {
+        'assets/model/car/mycar/truck.glb', 
+        function (gltf) { 
             truckModel = gltf.scene;
             truckModel.scale.set(2.5, 2.5, 2.5); 
-            truckModel.position.set(0, 2.5, 0); 
-            
+            truckModel.position.set(0, 2.5, 0);
+
             truckModel.traverse((child) => {
                 if (child.isMesh) {
                     child.castShadow = true;
@@ -223,7 +216,7 @@ export function createEntities(scene) {
         );
     });
 
-    // ALIMENTOS PROIBIDOS (Incluindo os 3 novos dejetos específicos)
+    // ALIMENTOS PROIBIDOS
     NEGATIVE_FOODS.forEach((item) => {
         const path = `assets/sprite/negativefood/${item.file}`;
         loader.load(
@@ -313,26 +306,26 @@ export function createEntities(scene) {
     );
 }
 
-export function movePlayerLeft() {
-    if (!truckModel) return;
-    if (currentLaneIndex > 0) {
-        currentLaneIndex--;
-        targetX = currentLanes[currentLaneIndex];
-    }
+export function movePlayerLeft() { 
+    if (!truckModel) return; 
+    if (currentLaneIndex > 0) { 
+        currentLaneIndex--; 
+        targetX = currentLanes[currentLaneIndex]; 
+    } 
 }
 
-export function movePlayerRight() {
-    if (!truckModel) return;
-    if (currentLaneIndex < 2) {
-        currentLaneIndex++;
-        targetX = currentLanes[currentLaneIndex];
-    }
+export function movePlayerRight() { 
+    if (!truckModel) return; 
+    if (currentLaneIndex < 2) { 
+        currentLaneIndex++; 
+        targetX = currentLanes[currentLaneIndex]; 
+    } 
 }
 
-let markTimer = 0; 
+let markTimer = 0;
 
 // EXECUTA A FÍSICA DO JOGADOR E DOS OBSTÁCULOS
-export function updateEntities(isBraking, deltaTime = 0.016) {
+export function updateEntities(isBraking, deltaTime = 0.016) { 
     if (!truckModel) return;
 
     const frameRatio = deltaTime * 60; 
@@ -423,10 +416,12 @@ export function updateEntities(isBraking, deltaTime = 0.016) {
             const exitSpeed = (currentSpeed - 0.20) * frameRatio;
             activeGarbageTruck.position.z -= exitSpeed;
 
-            // Retorna o fluxo de spawners imediatamente assim que o caminhão passar pelo jogador (z < 0)
-            if (onEventCompleteCallback && activeGarbageTruck.position.z < 0) {
-                onEventCompleteCallback();
-                onEventCompleteCallback = null; // Evita múltiplas chamadas
+            // Retomada Imediata: Carros voltam a spawnar assim que o lixeiro passa da traseira do caminhão
+            if (activeGarbageTruck.position.z < -5) {
+                if (onEventCompleteCallback) {
+                    onEventCompleteCallback(); 
+                    onEventCompleteCallback = null; // Executa uma única vez
+                }
             }
 
             if (activeGarbageTruck.position.z < -45) {
@@ -460,9 +455,12 @@ export function updateEntities(isBraking, deltaTime = 0.016) {
                 }
             }
 
-            if (onPoliceCompleteCallback && activePolice.position.z > 15) {
-                onPoliceCompleteCallback();
-                onPoliceCompleteCallback = null;
+            // Retomada Imediata: Spawns normais voltam assim que a polícia ultrapassa o jogador
+            if (activePolice.position.z > 25) {
+                if (onPoliceCompleteCallback) {
+                    onPoliceCompleteCallback();
+                    onPoliceCompleteCallback = null; // Executa uma única vez
+                }
             }
 
             if (activePolice.position.z > 120) {
@@ -482,13 +480,15 @@ export function updateEntities(isBraking, deltaTime = 0.016) {
 
             if (activeAmbulance.position.z > 0 && !ambulancePassed) {
                 ambulancePassed = true;
-                // Dispara evento personalizado para o main.js recompensar ou pontuar
                 document.dispatchEvent(new CustomEvent('ambulance-passed'));
             }
 
-            if (onAmbulanceCompleteCallback && activeAmbulance.position.z > 15) {
-                onAmbulanceCompleteCallback();
-                onAmbulanceCompleteCallback = null;
+            // Retomada Imediata: Spawns normais voltam assim que a ambulância ultrapassa o jogador
+            if (activeAmbulance.position.z > 25) {
+                if (onAmbulanceCompleteCallback) {
+                    onAmbulanceCompleteCallback();
+                    onAmbulanceCompleteCallback = null; // Executa uma única vez
+                }
             }
 
             if (activeAmbulance.position.z > 120) {
@@ -499,8 +499,9 @@ export function updateEntities(isBraking, deltaTime = 0.016) {
         }
     }
 }
+
 // Instancia um clone aleatório de qualquer carro
-export function spawnObstacle() {
+export function spawnObstacle() { 
     if (obstacleTemplates.length === 0) return;
 
     const randomTemplateIndex = Math.floor(Math.random() * obstacleTemplates.length);
@@ -518,7 +519,7 @@ export function spawnObstacle() {
 }
 
 // VERIFICA COLISÕES UNIFICADAS
-export function checkCollisions() {
+export function checkCollisions() { 
     if (!truckModel) return false;
 
     playerBox.setFromObject(truckModel);
@@ -560,22 +561,22 @@ export function checkCollisions() {
 }
 
 // Reseta os estados de todos os atores
-export function resetEntities() {
-    if (truckModel) {
-        currentLaneIndex = 1;        
-        targetX = 0.0;               
-        truckModel.position.set(0, 2.5, 0);
-        truckModel.rotation.set(0, 0, 0); 
+export function resetEntities() { 
+    if (truckModel) { 
+        currentLaneIndex = 1;
+        targetX = 0.0;
+        truckModel.position.set(0, 2.5, 0); 
+        truckModel.rotation.set(0, 0, 0);
         targetTruckRotationY = 0; 
-        updateLaneOffsets(false);
+        updateLaneOffsets(false); 
     }
-    
+
     if (activeGarbageTruck) {
         scene.remove(activeGarbageTruck);
         activeGarbageTruck = null;
         garbageTruckState = 'idle';
     }
-    
+
     if (activePolice) {
         scene.remove(activePolice);
         activePolice = null;
@@ -602,9 +603,9 @@ export function resetEntities() {
 }
 
 // Gera uma doação saudável ou proibida
-export function spawnItem() {
+export function spawnItem() { 
     const isHealthy = Math.random() < 0.6; 
-    let selectedTemplate = null;
+    let selectedTemplate = null; 
     let itemData = null;
 
     if (isHealthy) {
@@ -624,7 +625,7 @@ export function spawnItem() {
     if (!selectedTemplate) return;
 
     const itemMesh = selectedTemplate.clone();
-    
+
     const randomLaneIndex = Math.floor(Math.random() * currentLanes.length);
     const xPos = currentLanes[randomLaneIndex];
 
@@ -639,7 +640,7 @@ export function spawnItem() {
 }
 
 // Detecta coletas de itens
-export function checkItemCollections(onCollectCallback) {
+export function checkItemCollections(onCollectCallback) { 
     if (!truckModel || activeItems.length === 0) return;
 
     const playerX = truckModel.position.x;
@@ -661,7 +662,7 @@ export function checkItemCollections(onCollectCallback) {
 }
 
 // Ativa o spawn do Caminhão de Lixo no horizonte
-export function spawnGarbageTruck(onComplete) {
+export function spawnGarbageTruck(onComplete) { 
     if (!garbageTruckTemplate) return;
 
     onEventCompleteCallback = onComplete; 
@@ -676,10 +677,10 @@ export function spawnGarbageTruck(onComplete) {
     garbageTruckState = 'approaching'; 
 }
 
-// Lógica de arremesso de dejetos do Boss (Solta estritamente apenas estes 3 itens!)
-function dropGarbageFromTruck(xPos) {
-    const garbageFiles = ['egg-half.glb', 'fish-bones.glb', 'soda-can-crushed.glb'];
-    const randomFile = garbageFiles[Math.floor(Math.random() * garbageFiles.length)];
+// Lógica de arremesso de dejetos do Boss
+function dropGarbageFromTruck(xPos) { 
+    const garbageFiles = ['egg-half.glb', 'fish-bones.glb', 'soda-can-crushed.glb']; 
+    const randomFile = garbageFiles[Math.floor(Math.random() * garbageFiles.length)]; 
     const template = negativeTemplates[randomFile];
 
     if (!template) return; 
@@ -705,7 +706,7 @@ function dropGarbageFromTruck(xPos) {
 }
 
 // Ativa o spawn da Viatura por trás
-export function spawnPoliceCar(laneIndex, onComplete) {
+export function spawnPoliceCar(laneIndex, onComplete) { 
     if (!policeTemplate) return;
 
     onPoliceCompleteCallback = onComplete;
@@ -720,7 +721,7 @@ export function spawnPoliceCar(laneIndex, onComplete) {
 }
 
 // Ativa o spawn da Ambulância por trás
-export function spawnAmbulance(laneIndex, onComplete) {
+export function spawnAmbulance(laneIndex, onComplete) { 
     if (!ambulanceTemplate) return;
 
     onAmbulanceCompleteCallback = onComplete;
