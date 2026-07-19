@@ -238,18 +238,18 @@ function startGameSequence() {
     footer.classList.add('hidden');
     if (topLogos) topLogos.classList.add('hidden'); // Oculta as logos do topo também
 
-    triggerToast(0, "Se preparem... 3!", "leo1.png", true);
+    triggerToast(0, "3...", "leo.png", true);
 
     setTimeout(() => { 
-        triggerToast(0, "Acelerar... 2!", "leo1.png", true);
+        triggerToast(0, "2...", "leo.png", true);
     }, 1000);
 
     setTimeout(() => { 
-        triggerToast(0, "Pé na tábua... 1!", "leo1.png", true);
+        triggerToast(0, "1... Acelerando!", "leo.png", true);
     }, 2000);
 
     setTimeout(() => { 
-        triggerToast(0, "Colete o máximo de doações que conseguir!", "lucas1.png", true);
+        triggerToast(0, "Colete o máximo de doações que conseguir!", "lucas.png", true);
     }, 3000);
 
     setTimeout(() => {
