@@ -387,33 +387,33 @@ function decoratePiece(piece, biomeName, pieceIndex) {
         const combinedAssets = [...templates.models, ...templates.details];
         
         if (combinedAssets.length > 0) {
-            // LADO ESQUERDO: Instancia dois itens quaisquer espalhados aleatoriamente
+            // LADO ESQUERDO: Instancia dois itens quaisquer espalhados de forma mais rente à calçada
             const left1 = combinedAssets[Math.floor(Math.random() * combinedAssets.length)];
             piece.leftDecor = left1.clone();
-            // Dispersão aleatória lateral (X de -2.2 a -6.5) e Z (-2.2 a +2.2)
-            piece.leftDecor.position.set(-2.2 - Math.random() * 4.3, 0.4, (Math.random() - 0.5) * 4.5);
+            // Dispersão aleatória rente à calçada (X de -2.0 a -3.5) e Z (-2.0 a +2.0)
+            piece.leftDecor.position.set(-2.0 - Math.random() * 1.5, 0.4, (Math.random() - 0.5) * 4.0);
             piece.leftDecor.scale.multiplyScalar(0.8 + Math.random() * 0.45);
             piece.leftDecor.rotation.y = Math.random() * Math.PI * 2;
             piece.left.add(piece.leftDecor);
 
             const left2 = combinedAssets[Math.floor(Math.random() * combinedAssets.length)];
             piece.leftDetail = left2.clone();
-            piece.leftDetail.position.set(-2.2 - Math.random() * 4.3, 0.4, (Math.random() - 0.5) * 4.5);
+            piece.leftDetail.position.set(-2.0 - Math.random() * 1.5, 0.4, (Math.random() - 0.5) * 4.0);
             piece.leftDetail.scale.multiplyScalar(0.8 + Math.random() * 0.45);
             piece.leftDetail.rotation.y = Math.random() * Math.PI * 2;
             piece.left.add(piece.leftDetail);
 
-            // LADO DIREITO: Espalhamento igual (aproveita o espelhamento do container piece.right)
+            // LADO DIREITO: Espalhamento igual e rente à calçada
             const right1 = combinedAssets[Math.floor(Math.random() * combinedAssets.length)];
             piece.rightDecor = right1.clone();
-            piece.rightDecor.position.set(-2.2 - Math.random() * 4.3, 0.4, (Math.random() - 0.5) * 4.5);
+            piece.rightDecor.position.set(-2.0 - Math.random() * 1.5, 0.4, (Math.random() - 0.5) * 4.0);
             piece.rightDecor.scale.multiplyScalar(0.8 + Math.random() * 0.45);
             piece.rightDecor.rotation.y = Math.random() * Math.PI * 2;
             piece.right.add(piece.rightDecor);
 
             const right2 = combinedAssets[Math.floor(Math.random() * combinedAssets.length)];
             piece.rightDetail = right2.clone();
-            piece.rightDetail.position.set(-2.2 - Math.random() * 4.3, 0.4, (Math.random() - 0.5) * 4.5);
+            piece.rightDetail.position.set(-2.0 - Math.random() * 1.5, 0.4, (Math.random() - 0.5) * 4.0);
             piece.rightDetail.scale.multiplyScalar(0.8 + Math.random() * 0.45);
             piece.rightDetail.rotation.y = Math.random() * Math.PI * 2;
             piece.right.add(piece.rightDetail);
