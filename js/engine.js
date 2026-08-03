@@ -7,8 +7,8 @@ const CAMERA_PRESETS = [
     { 
         name: 'isometric', 
         menu: new THREE.Vector3(-20, 15, -25),
-        playLeft: new THREE.Vector3(-30, 60, -110),
-        playRight: new THREE.Vector3(30, 60, -110),
+        playLeft: new THREE.Vector3(-40, 60, -120),
+        playRight: new THREE.Vector3(40, 60, -120),
         menuLook: new THREE.Vector3(0, 2.3, 0)
     }, 
     { 
