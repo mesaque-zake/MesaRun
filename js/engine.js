@@ -7,15 +7,15 @@ const CAMERA_PRESETS = [
     { 
         name: 'isometric', 
         menu: new THREE.Vector3(-20, 15, -25),
-        playLeft: new THREE.Vector3(-60, 60, -110),
-        playRight: new THREE.Vector3(60, 60, -110),
+        playLeft: new THREE.Vector3(-30, 60, -110),
+        playRight: new THREE.Vector3(30, 60, -110),
         menuLook: new THREE.Vector3(0, 2.3, 0)
     }, 
     { 
         name: 'topdown', 
         menu: new THREE.Vector3(-3, 15, -25),
-        playLeft: new THREE.Vector3(-5, 40, -135),
-        playRight: new THREE.Vector3(5, 40, -135),
+        playLeft: new THREE.Vector3(-5, 40, -120),
+        playRight: new THREE.Vector3(5, 40, -120),
         menuLook: new THREE.Vector3(0, 2.5, 0) 
     }, 
     { 
