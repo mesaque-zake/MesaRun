@@ -86,9 +86,28 @@
                 </div>
             </div>
 
-            <!-- Tela de Contagem -->
-            <div id="countdown-layer" class="hidden absolute inset-0 pointer-events-none z-30 opacity-0">
-                <h1 id="countdown-text" class="hidden">3</h1>
+            <!-- Tela de Contagem (início da partida) -->
+            <div id="countdown-layer" class="hidden absolute inset-0 pointer-events-none z-30 opacity-0 transition-opacity duration-300">
+
+                <!-- Número gigante -->
+                <div class="absolute top-[5%] left-0 right-0 flex justify-center">
+                    <h1 id="countdown-text" class="countdown-number">3</h1>
+                </div>
+
+                <!-- Estouro de gibi com a fala -->
+                <div class="absolute top-[37%] left-0 right-0 flex justify-center px-3">
+                    <div id="countdown-burst" class="countdown-burst">
+                        <div class="countdown-burst-shape">
+                            <p id="countdown-burst-text" class="countdown-burst-text"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lucas e Léo no centro inferior -->
+                <div class="absolute bottom-0 left-0 right-0 flex justify-center items-end gap-1 px-2">
+                    <img id="countdown-lucas" src="assets/sprite/cartoon/lucas.png" alt="Lucas" class="countdown-char">
+                    <img id="countdown-leo" src="assets/sprite/cartoon/leo.png" alt="Léo" class="countdown-char">
+                </div>
             </div>
 
             <!-- HUD SUPERIOR -->
@@ -199,8 +218,48 @@
                     CONFIRMAR
                 </button>
 
-                <!-- Léo Maior e Centralizado -->
                 <img src="assets/sprite/cartoon/config.png" alt="Léo Config" class="absolute bottom-0 left-1/2 -translate-x-1/2 h-[18vh] object-contain pointer-events-none select-none align-bottom z-10">
+            </div>
+
+            <!-- Pop-up educativo (primeira vez de cada categoria proibida) -->
+            <div id="edu-popup-layer" class="hidden absolute inset-0 z-40 items-center justify-center bg-black/50 px-4">
+                <div id="edu-popup" class="edu-popup relative w-[300px] max-w-full">
+
+                    <!-- Confete da curiosidade (só aparece na versão especial) -->
+                    <div class="edu-confetti" aria-hidden="true">
+                        <span style="--dx:-150px;--dy:-120px">⭐</span>
+                        <span style="--dx:150px;--dy:-110px">✨</span>
+                        <span style="--dx:-170px;--dy:-10px">🎉</span>
+                        <span style="--dx:170px;--dy:0px">🌟</span>
+                        <span style="--dx:-140px;--dy:120px">✨</span>
+                        <span style="--dx:140px;--dy:130px">⭐</span>
+                        <span style="--dx:-60px;--dy:-150px">🎉</span>
+                        <span style="--dx:70px;--dy:-155px">🌟</span>
+                        <span style="--dx:-70px;--dy:150px">🌟</span>
+                        <span style="--dx:60px;--dy:155px">🎉</span>
+                    </div>
+
+                    <div id="edu-popup-ribbon" class="edu-popup-ribbon hidden">CURIOSIDADE!</div>
+
+                    <div class="edu-popup-card relative bg-slate-900/95 border-4 border-slate-950 rounded-3xl p-5 pt-4 pb-[16vh] shadow-2xl flex flex-col items-center">
+                        <img id="edu-popup-img" alt="" class="absolute bottom-0 left-1/2 -translate-x-1/2 h-[16vh] max-w-[90%] object-contain object-bottom select-none pointer-events-none z-10" onerror="this.style.display='none'">
+                        <h2 id="edu-popup-title" class="font-[Bangers] text-3xl text-white tracking-wide text-center mb-1"></h2>
+                        <p id="edu-popup-text" class="text-slate-200 text-xs font-semibold text-center leading-snug mb-4"></p>
+
+                        <button id="edu-popup-btn" class="edu-popup-btn w-full bg-emerald-500 hover:bg-emerald-400 text-white font-[Bangers] text-2xl tracking-wide py-2 rounded-xl border-4 border-slate-950 shadow-[3px_3px_0px_#020617] active:translate-y-[3px] active:shadow-none transition-all duration-100">
+                            ENTENDI!
+                        </button>
+
+                        <div class="edu-popup-timer"><div id="edu-popup-timer-bar" class="edu-popup-timer-bar"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Painel de Debug (Lote 1) -->
+            <div id="debug-panel" class="absolute bottom-2 left-2 bg-slate-950/80 backdrop-blur text-white font-mono text-[10px] p-2 rounded-xl border border-white/10 z-50 pointer-events-none">
+                <div>FPS: <span id="debug-fps" class="text-emerald-400 font-bold">0</span></div>
+                <div>Calls: <span id="debug-calls" class="text-amber-400 font-bold">0</span></div>
+                <div>Triângulos: <span id="debug-tris" class="text-blue-400 font-bold">0</span></div>
             </div>
 
         </div>
