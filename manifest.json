@@ -1,0 +1,19 @@
+{
+  "name": "MesaRun!",
+  "short_name": "MesaRun!",
+  "description": "Dirija o caminhão do Sesc Mesa Brasil, colete doações e aprenda o que pode doar. Jogue agora!",
+  "lang": "pt-BR",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "portrait",
+  "background_color": "#294277",
+  "theme_color": "#294277",
+  "icons": [
+    { "src": "IconRun/Icon192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "IconRun/Icon512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "IconRun/Icon512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
