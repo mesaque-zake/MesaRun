@@ -55,6 +55,19 @@ export function resetCrashZoom() {
     isCrashed = false; 
 }
 
+// Campo de visão vertical de referência (o do computador, com a área do jogo quadrada)
+const BASE_FOV = 14.5;
+// Quanto o campo de visão abre em telas estreitas (celular em pé):
+// 0 = não muda nada (como antes); 1 = mostra a mesma largura de pista do computador.
+// Quanto mais alto, mais pista à frente aparece, e carros e itens podem surgir à vista.
+const PORTRAIT_FIT = 0.5;
+
+function fovForAspect(aspect) {
+    if (aspect >= 1) return BASE_FOV;
+    const halfTan = Math.tan(THREE.MathUtils.degToRad(BASE_FOV / 2)) / Math.pow(aspect, PORTRAIT_FIT);
+    return THREE.MathUtils.radToDeg(Math.atan(halfTan)) * 2;
+}
+
 export function initEngine() { 
     // 1. Captura o contêiner do HTML
     const container = document.getElementById('game-container');
@@ -69,7 +82,7 @@ export function initEngine() {
     const aspect = width / height;
 
     // --- CÂMERA DE PERSPECTIVA COM ZOOM CINEMATOGRÁFICO ---
-    camera = new THREE.PerspectiveCamera(14.5, aspect, 1, 1000);
+    camera = new THREE.PerspectiveCamera(fovForAspect(aspect), aspect, 1, 1000);
     camera.position.set(-45, 30, -60); 
     camera.lookAt(0, 1.5, 5); 
 
@@ -133,6 +146,7 @@ function onWindowResize() {
     const aspect = width / height;
 
     camera.aspect = aspect;
+    camera.fov = fovForAspect(aspect);
     camera.updateProjectionMatrix();
 
     renderer.setSize(width, height);
