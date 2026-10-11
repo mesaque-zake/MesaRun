@@ -1051,7 +1051,7 @@ function startBiomeTimer() {
         if (isPlaying && !isGameOver) {
             runWhenNotPaused(triggerBiomeTransition);
         }
-    }, 20000); 
+    }, 40000); 
 }
 
 function triggerBiomeTransition() { 
