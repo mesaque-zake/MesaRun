@@ -1,21 +1,17 @@
 import { initEngine, renderEngine, scene, triggerCameraShake,
-setCameraFlippedState, triggerCrashZoom, resetCrashZoom, setCameraPreset } from
-'./engine.js'; 
+    setCameraFlippedState, setCameraPreset, renderer } from './engine.js';
 import { createWorld, updateWorld, setBrakingState, currentSpeed,
-setActiveBiome, spawnMacumbaSpecialEvent } from './world.js'; 
-import { createEntities, movePlayerLeft,
-movePlayerRight, updateEntities, spawnObstacle, checkCollisions, resetEntities,
-spawnItem, checkItemCollections, setTruckTransitionTurn, updateLaneOffsets,
-spawnGarbageTruck, activeGarbageTruck, spawnPoliceCar, activePolice,
-spawnAmbulance } from './entities.js';
+    setActiveBiome, spawnMacumbaSpecialEvent, resetWorldScenery } from './world.js';
+import { createEntities, movePlayerLeft, movePlayerRight, updateEntities,
+    spawnObstacle, checkCollisions, resetEntities, spawnItem, checkItemCollections,
+    setTruckTransitionTurn, spawnGarbageTruck, spawnPoliceCar,
+    spawnAmbulance, NEGATIVE_FOODS } from './entities.js';
 
 // Elementos da Interface (UI)
 const menuBackdrop = document.getElementById('menu-backdrop'); 
 const mainMenu = document.getElementById('main-menu'); 
 const rankingModal = document.getElementById('ranking-modal'); 
 const footer = document.getElementById('footer'); 
-const countdownLayer = document.getElementById('countdown-layer'); 
-const countdownText = document.getElementById('countdown-text'); 
 const hudLayer = document.getElementById('hud-layer'); 
 const gameWrapper = document.getElementById('game-wrapper');
 
@@ -73,9 +69,32 @@ const toastCharImg = document.getElementById('toast-char-img');
 const toastBalloon = document.getElementById('toast-balloon'); 
 const toastArrow = document.getElementById('toast-arrow');
 
+// Elementos da contagem inicial (3... 2... 1... VAI!)
+const countdownLayer = document.getElementById('countdown-layer');
+const countdownText = document.getElementById('countdown-text');
+const countdownBurst = document.getElementById('countdown-burst');
+const countdownBurstText = document.getElementById('countdown-burst-text');
+const countdownLeo = document.getElementById('countdown-leo');
+const countdownLucas = document.getElementById('countdown-lucas');
+
+// Elementos de Debug
+const debugFps = document.getElementById('debug-fps');
+const debugCalls = document.getElementById('debug-calls');
+const debugTris = document.getElementById('debug-tris');
+let frameCount = 0;
+let lastFpsTime = performance.now();
+
 // --- VARIÁVEIS DE PONTUAÇÃO E SPAWN ---
 let score = 0;
 let itemTimeout = null;
+
+// Sequência de comidas boas seguidas e quem fala o próximo elogio
+let goodStreak = 0;
+let praiseTurn = 0;
+const STREAK_PRAISES = {
+    3: "Nossa, você está fazendo uma ótima coleta!",
+    5: "Que incrível... Continue assim!"
+};
 let toastTimeout = null;
 let leaderboard = JSON.parse(localStorage.getItem('mesarun_ranking')) || []; 
 let lastTime = performance.now();
@@ -90,7 +109,6 @@ let nextSpecialEvent = 'garbage';
 let policeWarningIndex = 0;
 
 function init() { 
-    console.log("MesaRun! Motor 3D Inicializado...");
     initEngine();
 
     // --- CARREGAMENTO IMEDIATO DO CENÁRIO ---
@@ -100,8 +118,8 @@ function init() {
     // Liga as funções de clique dos botões do menu
     setupMenu();
 
-    // Começa o loop da engine
-    gameLoop();
+    // Começa o loop da engine injetando o tempo via API do navegador
+    requestAnimationFrame(gameLoop);
 }
 
 function setupMenu() { 
@@ -131,6 +149,15 @@ function setupMenu() {
     window.addEventListener('keydown', (e) => {
         if (!isPlaying) return;
 
+        // Com o jogo pausado os controles ficam bloqueados. Enter ou Espaço fecham o pop-up (com o botão já ativo).
+        if (isPaused) {
+            if ((e.key === 'Enter' || e.key === ' ') && eduPopupOpen && !eduPopupBtn.disabled) {
+                e.preventDefault();
+                closeEduPopup();
+            }
+            return;
+        }
+
         if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
             movePlayerLeft();
         } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
@@ -156,7 +183,7 @@ function setupMenu() {
 
     // Controle unificado por cliques de mouse e toques na tela
     gameWrapper.addEventListener('pointerdown', (e) => {
-        if (!isPlaying || isGameOver) return;
+        if (!isPlaying || isGameOver || isPaused) return;
 
         const rect = gameWrapper.getBoundingClientRect();
         const x = e.clientX - rect.left;
@@ -243,32 +270,62 @@ function setupMenu() {
     });
 }
 
+// Mostra um passo da contagem: número gigante, fala no estouro de gibi e quem está falando
+function showCountdownStep(number, phrase, speaker) {
+    countdownText.innerText = number;
+    countdownText.classList.toggle('is-go', number === 'VAI!');
+    countdownBurstText.innerText = phrase;
+
+    // Reinicia as animações (remove a classe, força o reflow e coloca de novo)
+    countdownText.classList.remove('countdown-punch');
+    countdownBurst.classList.remove('burst-pop');
+    void countdownText.offsetWidth;
+    countdownText.classList.add('countdown-punch');
+    countdownBurst.classList.add('burst-pop');
+
+    countdownLeo.classList.toggle('speaking', speaker === 'leo');
+    countdownLucas.classList.toggle('speaking', speaker === 'lucas');
+}
+
+function showCountdownLayer() {
+    countdownLayer.classList.remove('hidden');
+    void countdownLayer.offsetWidth; // força o reflow para o fade de entrada funcionar
+    countdownLayer.classList.remove('opacity-0');
+}
+
+function hideCountdownLayer() {
+    countdownLayer.classList.add('opacity-0');
+    setTimeout(() => countdownLayer.classList.add('hidden'), 300);
+}
+
 function startGameSequence() { 
     const topLogos = document.getElementById('top-logos'); 
     mainMenu.classList.add('hidden');
     footer.classList.add('hidden'); 
     if (topLogos) topLogos.classList.add('hidden');
 
-    triggerToast(0, "Aperte os cinto! 3...", "leo.png", true);
+    showCountdownLayer();
+    showCountdownStep('3', 'Aperte os cinto!', 'leo');
 
-    setTimeout(() => { 
-        triggerToast(0, "Ligue o motor! 2...", "leo.png", true);
+    setTimeout(() => {
+        showCountdownStep('2', 'Ligue o motor!', 'leo');
     }, 1000);
 
-    setTimeout(() => { 
-        triggerToast(0, "1... Acelerando!", "leo.png", true);
+    setTimeout(() => {
+        showCountdownStep('1', 'Acelerando!', 'leo');
     }, 2000);
 
-    setTimeout(() => { 
-        triggerToast(0, "Colete o máximo de doações que conseguir!", "lucas.png", true);
+    setTimeout(() => {
+        showCountdownStep('VAI!', 'Colete o máximo de doações que conseguir!', 'lucas');
     }, 3000);
 
     setTimeout(() => {
         menuBackdrop.style.opacity = '0'; 
 
         setTimeout(() => {
+            hideCountdownLayer();
             menuBackdrop.classList.add('hidden'); 
-            hudLayer.classList.remove('hidden'); 
+            hudLayer.classList.remove('hidden');
             speedometerLayer.classList.remove('hidden');
             scoreLayer.classList.remove('hidden'); 
 
@@ -296,7 +353,17 @@ function gameLoop(time) {
     const deltaTime = Math.min((time - lastTime) / 1000, 0.1); 
     lastTime = time;
 
-    if (!isGameOver) {
+    // --- ATUALIZA O PAINEL DE DEBUG ---
+    frameCount++;
+    if (time - lastFpsTime >= 1000) {
+        if (debugFps) debugFps.innerText = frameCount;
+        if (debugCalls && renderer) debugCalls.innerText = renderer.info.render.calls;
+        if (debugTris && renderer) debugTris.innerText = renderer.info.render.triangles;
+        frameCount = 0;
+        lastFpsTime = time;
+    }
+
+    if (!isGameOver && !isPaused) {
         updateWorld();
         updateEntities(activeBraking, deltaTime);
 
@@ -306,8 +373,9 @@ function gameLoop(time) {
         }
     }
 
-    if (isPlaying && !isGameOver) {
-        if (checkCollisions()) {
+    if (isPlaying && !isGameOver && !isPaused) {
+        // Logo depois de fechar o pop-up há 1 s sem colisão, para a pausa não causar uma batida injusta
+        if (performance.now() >= collisionGraceUntil && checkCollisions()) {
             triggerGameOver();
         }
         checkItemCollections(handleItemCollection);
@@ -330,11 +398,11 @@ function startObstacleSpawner() {
     if (spawnerTimeout) clearTimeout(spawnerTimeout);
 
     function scheduleNextObstacle() {
-        if (!isPlaying || isGameOver) return;
+        if (!isPlaying || isGameOver || isPaused) return;
         // Tráfego ligeiramente mais intenso e divertido
         const randomDelay = Math.random() * 800 + 1300; 
         spawnerTimeout = setTimeout(() => {
-            spawnObstacle();
+            if (!isPaused) spawnObstacle(); // pausado: pula este carro, sem empilhar no horizonte
             scheduleNextObstacle();
         }, randomDelay);
     }
@@ -362,8 +430,6 @@ function triggerGameOver() {
         toastLayer.classList.add('hidden');
 
         if (itemTimeout) clearTimeout(itemTimeout);
-        if (specialEventTimeout) clearTimeout(specialEventTimeout);
-
         gameOverModal.classList.remove('hidden');
         gameOverModal.classList.add('flex');
 
@@ -372,10 +438,10 @@ function triggerGameOver() {
     }, 2000);
 }
 
-function restartGame() { 
+// Parte comum ao "Tentar novamente" e ao "Menu principal"
+function resetGameState() { 
     gameOverModal.classList.add('hidden');
     gameOverModal.classList.remove('flex'); 
-    menuBackdrop.classList.add('hidden'); 
     if (biomeTimer) clearInterval(biomeTimer); 
     if (itemTimeout) clearTimeout(itemTimeout); 
     if (specialEventTimeout) clearTimeout(specialEventTimeout);
@@ -387,6 +453,9 @@ function restartGame() {
     setBrakingState(false);
     score = 0;
     scoreText.innerText = `0 kg`;
+    goodStreak = 0;
+    praiseTurn = 0;
+    resetEduPopupState();
 
     for (let i = 1; i <= 3; i++) {
         const icon = document.getElementById(`brake-icon-${i}`);
@@ -394,36 +463,22 @@ function restartGame() {
     }
 
     resetEntities();
+    resetWorldScenery(); // Bug fix: Limpa a pista entre partidas
+}
+
+function restartGame() { 
+    resetGameState();
+    menuBackdrop.classList.add('hidden'); 
     startGameSequence();
 }
 
 function backToMenu() { 
     const topLogos = document.getElementById('top-logos'); 
-    gameOverModal.classList.add('hidden'); 
-    gameOverModal.classList.remove('flex'); 
-    if (biomeTimer) clearInterval(biomeTimer); 
-    if (itemTimeout) clearTimeout(itemTimeout); 
-    if (specialEventTimeout) clearTimeout(specialEventTimeout);
-    if (macumbaTimeout) clearTimeout(macumbaTimeout);
+    resetGameState();
 
-    scoreLayer.classList.add('hidden');
-
-    isGameOver = false;
     isPlaying = false;
-    brakeCharges = 3;
-    activeBraking = false;
-    setBrakingState(false);
-    score = 0;
-    scoreText.innerText = `0 kg`;
-
+    scoreLayer.classList.add('hidden');
     speedometerLayer.classList.add('hidden');
-
-    for (let i = 1; i <= 3; i++) {
-        const icon = document.getElementById(`brake-icon-${i}`);
-        if (icon) icon.classList.remove('grayscale', 'opacity-30');
-    }
-
-    resetEntities();
 
     mainMenu.classList.remove('hidden');
     footer.classList.remove('hidden');
@@ -435,10 +490,10 @@ function startItemSpawner() {
     if (itemTimeout) clearTimeout(itemTimeout);
 
     function scheduleNextItem() {
-        if (!isPlaying || isGameOver) return;
+        if (!isPlaying || isGameOver || isPaused) return;
         const randomDelay = Math.random() * 1000 + 2500;
         itemTimeout = setTimeout(() => {
-            spawnItem();
+            if (!isPaused) spawnItem(); // pausado: pula este item
             scheduleNextItem();
         }, randomDelay);
     }
@@ -454,8 +509,26 @@ function handleItemCollection(item, itemX) {
     triggerFloatingText(item.value, itemX);
 
     if (!item.isHealthy) {
-        triggerToast(item.value, item.msg, item.file, false, item.isGarbage);
+        goodStreak = 0; // pegar item proibido quebra a sequência
+        // Primeira vez da categoria: pop-up educativo. Depois, o aviso no canto como antes.
+        if (!tryShowEducationalPopup(item.category)) {
+            triggerToast(item.value, item.msg, item.category, false, item.isGarbage);
+        }
+    } else {
+        goodStreak++;
+        showStreakPraise();
     }
+
+}
+
+// Elogio nas sequências de 3 e 5 comidas boas. Léo e Lucas se alternam (começa pelo Léo).
+function showStreakPraise() {
+    const msg = STREAK_PRAISES[goodStreak];
+    if (!msg) return;
+
+    const sprite = (praiseTurn % 2 === 0) ? 'leo.png' : 'lucas.png';
+    praiseTurn++;
+    triggerToast(0, msg, sprite, true);
 }
 
 function triggerFloatingText(value, xPos) { 
@@ -471,7 +544,11 @@ function triggerFloatingText(value, xPos) {
     textDiv.style.left = leftPercent;
     textDiv.style.transform = "translateX(-50%)";
 
-    if (value > 0) {
+    if (value === 0) {
+        // Easter egg (0 kg): destaque dourado em vez de "0 kg" vermelho
+        textDiv.innerText = 'CURIOSIDADE!';
+        textDiv.classList.add('text-yellow-300', 'drop-shadow-[0_4px_6px_rgba(0,0,0,0.6)]');
+    } else if (value > 0) {
         textDiv.innerText = `+${value} kg`;
         textDiv.classList.add('text-emerald-400', 'drop-shadow-[0_4px_6px_rgba(0,0,0,0.6)]');
     } else {
@@ -491,34 +568,153 @@ function triggerFloatingText(value, xPos) {
     }, 800);
 }
 
-function getCartoonSpriteForFood(itemFile, isGarbage) { 
-    if (isGarbage) return 'lucas2.png'; 
-    if (!itemFile) return 'lucas1.png';
-
-    if (itemFile === 'styrofoam-dinner.glb') return 'leo1.png'; 
-
-    if (itemFile.includes('-half') || itemFile.includes('-slice')) {
-        return 'lucas1.png'; 
+function getCartoonSpriteForFood(category) { 
+    switch (category) {
+        case 'lixo':        return 'lucas2.png';
+        case 'easterEgg':   return 'leo1.png';
+        case 'preparado':   return 'lucas3.png';
+        case 'lanche':      return 'lucas3.png';
+        case 'aberto':      return 'lucas4.png';
+        case 'doce':        return 'lucas5.png';
+        case 'super':       return 'lucas6.png';
+        case 'manipulado':  return 'lucas1.png';
+        default:            return 'lucas1.png';
     }
-
-    const readyMeals = [
-        'bowl-broth.glb', 'burger.glb', 'chinese.glb', 'egg-cooked.glb', 
-        'fries.glb', 'hot-dog.glb', 'meat-ribs.glb', 'rice-ball.glb', 
-        'sandwich.glb', 'sushi-egg.glb', 'taco.glb', 'turkey.glb'
-    ];
-    if (readyMeals.includes(itemFile)) return 'lucas3.png'; 
-
-    const openWrappers = ['can-open.glb', 'candy-bar-wrapper.glb', 'chocolate-wrapper.glb'];
-    if (openWrappers.includes(itemFile)) return 'lucas4.png'; 
-
-    const sweets = ['donut-sprinkles.glb', 'cake.glb'];
-    if (sweets.includes(itemFile)) return 'lucas5.png'; 
-
-    const forbidden = ['wine-red.glb', 'wine-white.glb', 'mushroom-half.glb', 'mushroom.glb'];
-    if (forbidden.includes(itemFile)) return 'lucas6.png'; 
-
-    return 'lucas1.png'; 
 }
+
+// =========================================
+// POP-UP EDUCATIVO: primeira vez de cada categoria proibida
+// =========================================
+const eduPopupLayer = document.getElementById('edu-popup-layer');
+const eduPopup = document.getElementById('edu-popup');
+const eduPopupRibbon = document.getElementById('edu-popup-ribbon');
+const eduPopupImg = document.getElementById('edu-popup-img');
+const eduPopupTitle = document.getElementById('edu-popup-title');
+const eduPopupText = document.getElementById('edu-popup-text');
+const eduPopupBtn = document.getElementById('edu-popup-btn');
+const eduPopupTimerBar = document.getElementById('edu-popup-timer-bar');
+
+const EDU_HIT_STOP_MS = 250;          // congelada rápida antes de o pop-up aparecer
+const EDU_BUTTON_DELAY_MS = 1000;     // o botão "Entendi!" só ativa depois de 1 s
+const EDU_AUTO_CLOSE_MS = 6000;       // fecha sozinho
+const EDU_AUTO_CLOSE_SPECIAL_MS = 8000; // easter egg: um pouco mais de tempo
+const RESUME_GRACE_MS = 1000;         // 1 s sem colisão depois de retomar o jogo
+
+// Textos (rascunho): ajuste aqui o que não estiver fiel às regras do Mesa Brasil
+const CATEGORY_POPUPS = {
+    manipulado: { title: 'Já foi mexido!', text: 'Frutas e legumes cortados perdem a proteção da casca e estragam mais rápido. Só coletamos alimentos inteiros.' },
+    preparado:  { title: 'Comida pronta não!', text: 'Refeições já preparadas não entram na coleta. Coletamos alimentos crus ou fechados, que duram mais e chegam seguros.' },
+    lanche:     { title: 'Lanche pronto não!', text: 'Lanches prontos, como hambúrguer, cachorro-quente e taco, não fazem parte das doações que coletamos.' },
+    aberto:     { title: 'Embalagem aberta!', text: 'Se a embalagem já foi aberta, não dá para garantir que o alimento está seguro. Só coletamos produtos lacrados.' },
+    doce:       { title: 'Doce com recheio!', text: 'Bolos, donuts e doces recheados estragam rápido e não fazem parte da coleta.' },
+    super:      { title: 'Isso nem pensar!', text: 'Bebidas alcoólicas e cogumelos não são coletados. É a maior penalidade do jogo, por isso o aviso é mais forte.' },
+    easterEgg:  { title: 'Isso é história!', text: 'HAHAHA! O "Mesa São Paulo" entregava isso em 1994, hoje não mais!', special: true }
+};
+
+let isPaused = false;               // true enquanto o jogo está congelado pelo pop-up
+let eduPopupOpen = false;           // true quando o pop-up já está visível
+let collisionGraceUntil = 0;        // até quando (performance.now) a colisão fica desligada
+let pendingAfterPause = [];         // ações de eventos que venceram durante a pausa
+const seenPopupCategories = new Set(); // só na memória da página: F5 ou fechar o jogo zera
+let eduShowTimeout = null;
+let eduEnableTimeout = null;
+let eduAutoCloseTimeout = null;
+
+// Executa agora, ou guarda para quando o jogo voltar (usado pelos agendadores)
+function runWhenNotPaused(fn) {
+    if (isPaused) {
+        pendingAfterPause.push(fn);
+    } else {
+        fn();
+    }
+}
+
+function flushPendingAfterPause() {
+    const list = pendingAfterPause;
+    pendingAfterPause = [];
+    list.forEach(fn => fn());
+}
+
+function clearEduPopupTimers() {
+    if (eduShowTimeout) clearTimeout(eduShowTimeout);
+    if (eduEnableTimeout) clearTimeout(eduEnableTimeout);
+    if (eduAutoCloseTimeout) clearTimeout(eduAutoCloseTimeout);
+    eduShowTimeout = eduEnableTimeout = eduAutoCloseTimeout = null;
+}
+
+// Devolve true se o pop-up vai aparecer (e então o aviso do canto não deve ser mostrado)
+function tryShowEducationalPopup(category) {
+    const info = CATEGORY_POPUPS[category];
+    if (!info || seenPopupCategories.has(category)) return false;
+    if (!isPlaying || isGameOver || isPaused) return false;
+
+    seenPopupCategories.add(category);
+    isPaused = true; // congela já; o pop-up entra depois da "batida" de impacto
+
+    eduShowTimeout = setTimeout(() => openEduPopup(category, info), EDU_HIT_STOP_MS);
+    return true;
+}
+
+function openEduPopup(category, info) {
+    const isSpecial = !!info.special;
+
+    eduPopupTitle.innerText = info.title;
+    eduPopupText.innerText = info.text;
+    eduPopupRibbon.classList.toggle('hidden', !isSpecial);
+    eduPopup.classList.toggle('edu-popup-special', isSpecial);
+
+    // Se o arquivo do personagem não existir, o onerror do HTML esconde a imagem
+    eduPopupImg.style.display = '';
+    eduPopupImg.src = `assets/sprite/cartoon/${getCartoonSpriteForFood(category)}`;
+
+    eduPopupLayer.classList.remove('hidden');
+    eduPopupLayer.classList.add('flex');
+
+    // Reinicia o "pop" de entrada
+    eduPopup.classList.remove('edu-popup-pop');
+    void eduPopup.offsetWidth;
+    eduPopup.classList.add('edu-popup-pop');
+
+    // Botão inativo no primeiro segundo, para um toque rápido não fechar sem ler
+    eduPopupBtn.disabled = true;
+    eduEnableTimeout = setTimeout(() => { eduPopupBtn.disabled = false; }, EDU_BUTTON_DELAY_MS);
+
+    // Barrinha de tempo e fechamento automático
+    const autoCloseMs = isSpecial ? EDU_AUTO_CLOSE_SPECIAL_MS : EDU_AUTO_CLOSE_MS;
+    eduPopupTimerBar.style.animation = 'none';
+    void eduPopupTimerBar.offsetWidth;
+    eduPopupTimerBar.style.animation = `eduTimerShrink ${autoCloseMs}ms linear forwards`;
+    eduAutoCloseTimeout = setTimeout(closeEduPopup, autoCloseMs);
+
+    eduPopupOpen = true;
+}
+
+function closeEduPopup() {
+    if (!eduPopupOpen) return;
+
+    clearEduPopupTimers();
+    eduPopupOpen = false;
+    eduPopupLayer.classList.add('hidden');
+    eduPopupLayer.classList.remove('flex');
+
+    isPaused = false;
+    collisionGraceUntil = performance.now() + RESUME_GRACE_MS;
+    flushPendingAfterPause();
+}
+
+// Usado ao reiniciar ou voltar ao menu: garante que nada fique pausado.
+// O que já foi mostrado (seenPopupCategories) é mantido de propósito.
+function resetEduPopupState() {
+    clearEduPopupTimers();
+    eduPopupOpen = false;
+    eduPopupLayer.classList.add('hidden');
+    eduPopupLayer.classList.remove('flex');
+    isPaused = false;
+    pendingAfterPause = [];
+}
+
+eduPopupBtn.addEventListener('click', closeEduPopup);
+
 
 // LÓGICA DO DIÁLOGO CARTOON
 function triggerToast(penalty, msg, fileOrSpriteName, isManualSprite = false, isGarbage = false) { 
@@ -528,8 +724,10 @@ function triggerToast(penalty, msg, fileOrSpriteName, isManualSprite = false, is
     if (isManualSprite) {
         spriteName = fileOrSpriteName; 
     } else {
-        spriteName = getCartoonSpriteForFood(fileOrSpriteName, isGarbage); 
+        // Aqui fileOrSpriteName é a categoria do item (ex.: 'lixo', 'preparado')
+        spriteName = getCartoonSpriteForFood(fileOrSpriteName);
     }
+
 
     const isSameSprite = (lastSpriteName === spriteName) && (!toastLayer.classList.contains('hidden'));
     lastSpriteName = spriteName;
@@ -653,14 +851,13 @@ function startBiomeTimer() {
     currentBiomeIndex = 0;
     isFlipped = false;
     setCameraFlippedState(false);
-    updateLaneOffsets(false);
     setActiveBiome('nature');
 
     biomeTimer = setInterval(() => {
         if (isPlaying && !isGameOver) {
-            triggerBiomeTransition();
+            runWhenNotPaused(triggerBiomeTransition);
         }
-    }, 60000); 
+    }, 20000); 
 }
 
 function triggerBiomeTransition() { 
@@ -672,8 +869,6 @@ function triggerBiomeTransition() {
     setTimeout(() => {
         isFlipped = !isFlipped;
         setCameraFlippedState(isFlipped);
-        updateLaneOffsets(isFlipped);
-
         currentBiomeIndex = (currentBiomeIndex + 1) % BIOMES_LIST.length;
         setActiveBiome(BIOMES_LIST[currentBiomeIndex]);
 
@@ -692,7 +887,7 @@ function startSpecialEventTimer() {
 
     specialEventTimeout = setTimeout(() => {
         if (isPlaying && !isGameOver) {
-            triggerSpecialEvent();
+            runWhenNotPaused(triggerSpecialEvent);
         }
     }, 30000); 
 }
@@ -705,14 +900,17 @@ function triggerSpecialEvent() {
         triggerToast(0, "CUIDADO! Caminhão de lixo à frente!", "leo2.png", true);
 
         setTimeout(() => {
-            if (isPlaying && !isGameOver) {
-                spawnGarbageTruck(handleSpecialEventComplete);
-            }
+            runWhenNotPaused(() => {
+                if (isPlaying && !isGameOver) {
+                    spawnGarbageTruck(handleSpecialEventComplete);
+                }
+            });
         }, 1500);
 
         nextSpecialEvent = 'police'; 
     } 
-    else if (nextSpecialEvent === 'police') {
+        else if (nextSpecialEvent === 'police' || nextSpecialEvent === 'ambulance') {
+        const isPolice = (nextSpecialEvent === 'police');
         policeWarningIndex = Math.floor(Math.random() * 3);
 
         const siren = document.getElementById(`warning-siren-${policeWarningIndex}`);
@@ -721,30 +919,19 @@ function triggerSpecialEvent() {
         triggerToast(0, "Algum veículo está vindo rápido demais!", "leo3.png", true);
 
         setTimeout(() => {
-            if (siren) siren.classList.add('hidden');
-            if (isPlaying && !isGameOver) {
-                spawnPoliceCar(policeWarningIndex, handleSpecialEventComplete);
-            }
+            runWhenNotPaused(() => {
+                if (siren) siren.classList.add('hidden');
+                if (isPlaying && !isGameOver) {
+                    if (isPolice) {
+                        spawnPoliceCar(policeWarningIndex, handleSpecialEventComplete);
+                    } else {
+                        spawnAmbulance(policeWarningIndex, handleSpecialEventComplete);
+                    }
+                }
+            });
         }, 1800);
 
-        nextSpecialEvent = 'ambulance'; 
-    }
-    else if (nextSpecialEvent === 'ambulance') {
-        policeWarningIndex = Math.floor(Math.random() * 3);
-
-        const siren = document.getElementById(`warning-siren-${policeWarningIndex}`);
-        if (siren) siren.classList.remove('hidden');
-
-        triggerToast(0, "Algum veículo está vindo rápido demais!", "leo3.png", true);
-
-        setTimeout(() => {
-            if (siren) siren.classList.add('hidden');
-            if (isPlaying && !isGameOver) {
-                spawnAmbulance(policeWarningIndex, handleSpecialEventComplete);
-            }
-        }, 1800);
-
-        nextSpecialEvent = 'garbage'; 
+        nextSpecialEvent = isPolice ? 'ambulance' : 'garbage'; 
     }
 }
 
@@ -758,11 +945,12 @@ function handleSpecialEventComplete() {
 
 function updateCameraButtonsUI(activeIndex) { 
     const buttons = [btnCamIsometric, btnCamTopdown, btnCamChase]; 
+    const baseClasses = "w-full text-white font-bold py-1.5 rounded-lg border border-slate-950 shadow-[2px_2px_0px_#020617] active:translate-y-[2px] active:shadow-none transition-all text-[10px]";
+
     buttons.forEach((btn, index) => { 
-        if (index === activeIndex) { 
-            btn.className = "w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 rounded-lg border border-slate-950 shadow-[2px_2px_0px_#020617] active:translate-y-[2px] active:shadow-none transition-all text-[10px]"; 
-        } else { 
-            btn.className = "w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-1.5 rounded-lg border border-slate-950 shadow-[2px_2px_0px_#020617] active:translate-y-[2px] active:shadow-none transition-all text-[10px]"; 
-        } 
+        const colorClasses = (index === activeIndex)
+            ? "bg-emerald-600 hover:bg-emerald-500"
+            : "bg-slate-700 hover:bg-slate-600";
+        btn.className = `${colorClasses} ${baseClasses}`;
     }); 
 }
