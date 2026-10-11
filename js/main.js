@@ -81,6 +81,9 @@ const countdownLucas = document.getElementById('countdown-lucas');
 const debugFps = document.getElementById('debug-fps');
 const debugCalls = document.getElementById('debug-calls');
 const debugTris = document.getElementById('debug-tris');
+const debugPanel = document.getElementById('debug-panel');
+const btnToggleDebug = document.getElementById('btn-toggle-debug');
+const debugSwitch = document.getElementById('debug-switch');
 let frameCount = 0;
 let lastFpsTime = performance.now();
 
@@ -118,8 +121,30 @@ function init() {
     // Liga as funções de clique dos botões do menu
     setupMenu();
 
+    // Painel de debug: oculto por padrão; lembra a escolha feita nos Ajustes
+    let debugWasOn = false;
+    try { debugWasOn = localStorage.getItem(DEBUG_STORAGE_KEY) === '1'; } catch (e) {}
+    setDebugPanelVisible(debugWasOn);
+
     // Começa o loop da engine injetando o tempo via API do navegador
     requestAnimationFrame(gameLoop);
+}
+
+// Painel de debug (FPS, calls, triângulos): oculto por padrão, ligado pelos Ajustes
+const DEBUG_STORAGE_KEY = 'mesarun_debug';
+
+function setDebugPanelVisible(visible) {
+    debugPanel.classList.toggle('hidden', !visible);
+    debugSwitch.classList.toggle('on', visible);
+    btnToggleDebug.setAttribute('aria-checked', visible ? 'true' : 'false');
+    try { localStorage.setItem(DEBUG_STORAGE_KEY, visible ? '1' : '0'); } catch (e) {}
+}
+
+// Pulinho do marcador de kg: 'gain' pula e pisca em verde, 'loss' balança e pisca em vermelho
+function pulseHud(el, kind) {
+    el.classList.remove('hud-flash-gain', 'hud-flash-loss');
+    void el.offsetWidth; // força o reflow para a animação recomeçar
+    el.classList.add(kind === 'gain' ? 'hud-flash-gain' : 'hud-flash-loss');
 }
 
 function setupMenu() { 
@@ -268,6 +293,10 @@ function setupMenu() {
         setCameraPreset(2);
         updateCameraButtonsUI(2);
     });
+
+    btnToggleDebug.addEventListener('click', () => {
+        setDebugPanelVisible(debugPanel.classList.contains('hidden'));
+    });
 }
 
 // Mostra um passo da contagem: número gigante, fala no estouro de gibi e quem está falando
@@ -296,6 +325,35 @@ function showCountdownLayer() {
 function hideCountdownLayer() {
     countdownLayer.classList.add('opacity-0');
     setTimeout(() => countdownLayer.classList.add('hidden'), 300);
+}
+
+// Dica de controles (vidro fosco) no começo de cada partida
+const controlsHint = document.getElementById('controls-hint');
+const controlsHintTouch = document.getElementById('controls-hint-touch');
+const controlsHintKeys = document.getElementById('controls-hint-keys');
+const CONTROLS_HINT_MS = 5000; // precisa bater com os 5s do @keyframes controlsHintFade no CSS
+let controlsHintTimeout = null;
+
+function showControlsHint() {
+    // Tela de toque (ponteiro principal "grosso") mostra os gestos; senão, mostra as teclas
+    const isTouch = window.matchMedia('(pointer: coarse)').matches;
+    controlsHintTouch.classList.toggle('hidden', !isTouch);
+    controlsHintKeys.classList.toggle('hidden', isTouch);
+
+    // Reinicia o fade (remove a classe, força o reflow e coloca de novo)
+    controlsHint.classList.remove('hidden', 'controls-hint-run');
+    void controlsHint.offsetWidth;
+    controlsHint.classList.add('controls-hint-run');
+
+    if (controlsHintTimeout) clearTimeout(controlsHintTimeout);
+    controlsHintTimeout = setTimeout(hideControlsHint, CONTROLS_HINT_MS + 100);
+}
+
+function hideControlsHint() {
+    if (controlsHintTimeout) clearTimeout(controlsHintTimeout);
+    controlsHintTimeout = null;
+    controlsHint.classList.add('hidden');
+    controlsHint.classList.remove('controls-hint-run');
 }
 
 function startGameSequence() { 
@@ -330,6 +388,8 @@ function startGameSequence() {
             scoreLayer.classList.remove('hidden'); 
 
             isPlaying = true;
+            gameStartTime = performance.now();
+            showControlsHint();
             startObstacleSpawner();
             startItemSpawner();
             startBiomeTimer(); 
@@ -390,7 +450,7 @@ function updateBrakeUI() {
     const iconIndex = brakeCharges + 1; 
     const icon = document.getElementById(`brake-icon-${iconIndex}`); 
     if (icon) {
-        icon.classList.add('grayscale', 'opacity-30'); 
+        icon.classList.add('grayscale', 'opacity-30', 'brake-used');
     } 
 }
 
@@ -418,7 +478,9 @@ function triggerGameOver() {
     if (specialEventTimeout) clearTimeout(specialEventTimeout);
     if (macumbaTimeout) clearTimeout(macumbaTimeout);
 
-    triggerCameraShake(1.5); 
+    gameDurationSec = Math.round((performance.now() - gameStartTime) / 1000);
+    hideControlsHint(); // a dica some junto com a partida
+    triggerCameraShake(1.5);
 
     setTimeout(() => {
         menuBackdrop.classList.remove('hidden');
@@ -433,8 +495,7 @@ function triggerGameOver() {
         gameOverModal.classList.remove('hidden');
         gameOverModal.classList.add('flex');
 
-        gameOverScore.innerText = `${score} kg`;
-        checkAndShowRecordForm();
+        setupGameOverScreen();
     }, 2000);
 }
 
@@ -456,10 +517,13 @@ function resetGameState() {
     goodStreak = 0;
     praiseTurn = 0;
     resetEduPopupState();
+    hideControlsHint();
+    goodCollected = 0;
+    stopGameOverScoreAnimation();
 
     for (let i = 1; i <= 3; i++) {
         const icon = document.getElementById(`brake-icon-${i}`);
-        if (icon) icon.classList.remove('grayscale', 'opacity-30');
+        if (icon) icon.classList.remove('grayscale', 'opacity-30', 'brake-used');
     }
 
     resetEntities();
@@ -506,6 +570,10 @@ function handleItemCollection(item, itemX) {
     if (score < 0) score = 0; 
     scoreText.innerText = `${score} kg`;
 
+    // Pulinho no marcador: verde ao ganhar, balanço vermelho ao perder (valor 0 não anima)
+    if (item.value > 0) pulseHud(scoreLayer, 'gain');
+    else if (item.value < 0) pulseHud(scoreLayer, 'loss');
+
     triggerFloatingText(item.value, itemX);
 
     if (!item.isHealthy) {
@@ -516,6 +584,7 @@ function handleItemCollection(item, itemX) {
         }
     } else {
         goodStreak++;
+        goodCollected++;
         showStreakPraise();
     }
 
@@ -806,19 +875,132 @@ function updateLeaderboardUI() {
     });
 }
 
-function checkAndShowRecordForm() { 
-    if (score <= 0) {
-        recordForm.classList.add('hidden'); 
-        recordForm.classList.remove('flex'); 
-        return;
+// =========================================
+// TELA DE FIM DE PARTIDA
+// =========================================
+const gameOverScorePill = document.getElementById('game-over-score-pill');
+const gameOverTime = document.getElementById('game-over-time');
+const gameOverGood = document.getElementById('game-over-good');
+const recordBadge = document.getElementById('record-badge');
+const recordFeedback = document.getElementById('record-feedback');
+const btnStaffYes = document.getElementById('btn-staff-yes');
+const btnStaffNo = document.getElementById('btn-staff-no');
+const unitWrap = document.getElementById('unit-wrap');
+const playerUnitInput = document.getElementById('player-unit-input');
+
+const BEST_SCORE_KEY = 'mesarun_best';      // melhor pontuação deste aparelho
+const PLAYER_PREFS_KEY = 'mesarun_player';  // nome e unidade lembrados
+const SCORE_COUNT_MS = 900;                 // duração da contagem do placar
+const SCORE_COUNT_DELAY_MS = 350;           // espera o card terminar de "pipocar"
+
+let gameStartTime = 0;     // quando a partida começou (performance.now)
+let gameDurationSec = 0;   // duração da última partida, em segundos
+let goodCollected = 0;     // comidas boas coletadas na partida
+let playerIsStaff = false;
+let scoreCountFrame = null;
+
+function formatDuration(sec) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function stopGameOverScoreAnimation() {
+    if (scoreCountFrame) {
+        cancelAnimationFrame(scoreCountFrame);
+        scoreCountFrame = null;
+    }
+}
+
+// O número sobe rápido até o valor final e dá um pulinho ao terminar
+function animateGameOverScore(finalScore) {
+    stopGameOverScoreAnimation();
+    gameOverScore.innerText = '0 kg';
+    if (finalScore <= 0) return;
+
+    const startAt = performance.now() + SCORE_COUNT_DELAY_MS;
+    const step = (now) => {
+        if (now < startAt) {
+            scoreCountFrame = requestAnimationFrame(step);
+            return;
+        }
+        const t = Math.min((now - startAt) / SCORE_COUNT_MS, 1);
+        const eased = 1 - Math.pow(1 - t, 3);
+        gameOverScore.innerText = `${Math.round(finalScore * eased)} kg`;
+        if (t < 1) {
+            scoreCountFrame = requestAnimationFrame(step);
+        } else {
+            scoreCountFrame = null;
+            pulseHud(gameOverScorePill, 'gain');
+        }
+    };
+    scoreCountFrame = requestAnimationFrame(step);
+}
+
+// Mensagem dentro do card (substitui os alert do navegador). kind: 'error', 'ok' ou nada
+function setRecordFeedback(text, kind) {
+    recordFeedback.innerText = text || '';
+    recordFeedback.classList.toggle('hidden', !text);
+    recordFeedback.classList.remove('go-error', 'go-ok');
+    if (kind === 'error') recordFeedback.classList.add('go-error');
+    if (kind === 'ok') recordFeedback.classList.add('go-ok');
+}
+
+// Chave "Funcionário Sesc? NÃO / SIM": SIM abre o campo da unidade
+function setStaffMode(on) {
+    playerIsStaff = on;
+    btnStaffYes.classList.toggle('on', on);
+    btnStaffNo.classList.toggle('on', !on);
+    btnStaffYes.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btnStaffNo.setAttribute('aria-pressed', on ? 'false' : 'true');
+    unitWrap.classList.toggle('open', on);
+    playerUnitInput.disabled = !on;
+}
+
+btnStaffYes.addEventListener('click', () => setStaffMode(true));
+btnStaffNo.addEventListener('click', () => setStaffMode(false));
+
+// Enter nos campos de texto salva o recorde
+[playerNameInput, playerUnitInput].forEach((input) => {
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') saveRecord();
+    });
+});
+
+// Nome e unidade já vêm preenchidos com o que a pessoa usou da última vez
+function loadPlayerPrefs() {
+    let prefs = {};
+    try { prefs = JSON.parse(localStorage.getItem(PLAYER_PREFS_KEY)) || {}; } catch (e) {}
+    playerNameInput.value = prefs.name || '';
+    playerUnitInput.value = prefs.unit || '';
+    setStaffMode(prefs.isStaff === true);
+}
+
+// Monta a tela inteira quando o modal de fim de partida aparece
+function setupGameOverScreen() {
+    gameOverTime.innerText = formatDuration(gameDurationSec);
+    gameOverGood.innerText = goodCollected;
+
+    // Novo recorde = supera o melhor resultado salvo neste aparelho
+    let best = 0;
+    try { best = Number(localStorage.getItem(BEST_SCORE_KEY)) || 0; } catch (e) {}
+    const isNewBest = score > 0 && score > best;
+    if (isNewBest) {
+        try { localStorage.setItem(BEST_SCORE_KEY, String(score)); } catch (e) {}
     }
 
-    const isNewRecord = leaderboard.length < 10 || score > leaderboard[leaderboard.length - 1].score;
+    recordBadge.classList.toggle('hidden', !isNewBest);
+    gameOverModal.classList.toggle('gameover-record', isNewBest);
+    gameOverModal.classList.toggle('gameover-compact', score > 0);
 
-    if (isNewRecord) {
+    animateGameOverScore(score);
+    setRecordFeedback('');
+
+    if (score > 0) {
+        loadPlayerPrefs();
+        btnSaveRecord.disabled = false;
         recordForm.classList.remove('hidden');
         recordForm.classList.add('flex');
-        playerNameInput.value = '';
     } else {
         recordForm.classList.add('hidden');
         recordForm.classList.remove('flex');
@@ -827,22 +1009,34 @@ function checkAndShowRecordForm() {
 
 function saveRecord() { 
     const name = playerNameInput.value.trim().toUpperCase();
-    if (!name) { 
-        alert("Por favor, digite seu nome!"); 
-        return; 
+    const unit = playerUnitInput.value.trim();
+
+    if (name.length < 2) {
+        setRecordFeedback('Digite seu nome (mínimo 2 letras).', 'error');
+        playerNameInput.focus();
+        return;
+    }
+    if (playerIsStaff && unit.length < 3) {
+        setRecordFeedback('Digite a sua unidade (ex.: Sesc Pompéia).', 'error');
+        playerUnitInput.focus();
+        return;
     }
 
-    leaderboard.push({ name: name, score: score });
+    leaderboard.push({ name: name, unit: playerIsStaff ? unit : '', score: score });
     leaderboard.sort((a, b) => b.score - a.score);
     leaderboard = leaderboard.slice(0, 10);
 
     localStorage.setItem('mesarun_ranking', JSON.stringify(leaderboard));
+    try {
+        localStorage.setItem(PLAYER_PREFS_KEY, JSON.stringify({ name: name, isStaff: playerIsStaff, unit: unit }));
+    } catch (e) {}
 
     recordForm.classList.remove('flex');
     recordForm.classList.add('hidden');
+    btnSaveRecord.disabled = true;
 
     updateLeaderboardUI();
-    alert("Recorde gravado com sucesso!");
+    setRecordFeedback('Recorde salvo neste aparelho!', 'ok');
 }
 
 function startBiomeTimer() { 
