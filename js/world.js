@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { scene, dirLight, hemisphereLight, currentPresetIndex } from './engine.js';
 
-export let roadGroup; 
+let roadGroup; 
 let dashedLines = []; 
 let roadPieces = [];
 
@@ -10,12 +10,22 @@ const ROAD_LENGTH = 360;
 
 // --- CONTROLE DE VELOCIDADE DINÂMICA ---
 export let currentSpeed = 0.5;
-const NORMAL_SPEED = 0.5;
 const DECEL_RATE = 0.08;
 const ACCEL_RATE = 0.02;
 let isBraking = false;
 
 let tireMarks = [];
+// Otimização: Geometria e Material únicos criados na memória uma só vez
+const sharedTireGeo = new THREE.PlaneGeometry(0.3, 1.2);
+const sharedTireMat = new THREE.MeshBasicMaterial({
+    color: 0x111111,
+    transparent: true,
+    opacity: 0.23,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1
+});
 // Armazena grupos especiais como o triângulo de macumbas
 let activeSpecialScenery = [];
 
@@ -93,11 +103,46 @@ const BIOME_CONFIG = {
     }
 };
 
-export let streetlightTemplate = null; 
-export let activeBiome = 'nature'; 
-export let groundPlane;
+let streetlightTemplate = null; 
+let activeBiome = 'nature'; 
+let groundPlane;
 
 let storedBordaDoAsfalto = 9.5; // Valor de fallback seguro
+
+// Lote 3: Estado Atual e Estado Alvo para o Fade Suave da Iluminação
+const currentLightState = {
+    dirColor: new THREE.Color(0xfff1b5), dirIntensity: 1.1,
+    hemiColor: new THREE.Color(0xdbe9f4), hemiGround: new THREE.Color(0x6b8f35), hemiIntensity: 0.6,
+    fogColor: new THREE.Color(0xa0a8b0), fogDensity: 0
+};
+const targetLightState = {
+    dirColor: new THREE.Color(0xfff1b5), dirIntensity: 1.1,
+    hemiColor: new THREE.Color(0xdbe9f4), hemiGround: new THREE.Color(0x6b8f35), hemiIntensity: 0.6,
+    fogColor: new THREE.Color(0xa0a8b0), fogDensity: 0
+};
+
+// Foto do estado de luz no instante em que o bioma troca (ponto de partida da transição)
+const startLightState = {
+    dirColor: new THREE.Color(0xfff1b5), dirIntensity: 1.1,
+    hemiColor: new THREE.Color(0xdbe9f4), hemiGround: new THREE.Color(0x6b8f35), hemiIntensity: 0.6,
+    fogColor: new THREE.Color(0xa0a8b0), fogDensity: 0
+};
+
+// Duração da transição de luz entre biomas (em milissegundos) e relógio dela
+const LIGHT_TRANSITION_MS = 10000;
+let lightTransitionStartTime = 0;
+
+// Guarda o estado atual como ponto de partida e reinicia o relógio da transição
+function beginLightTransition() {
+    startLightState.dirColor.copy(currentLightState.dirColor);
+    startLightState.hemiColor.copy(currentLightState.hemiColor);
+    startLightState.hemiGround.copy(currentLightState.hemiGround);
+    startLightState.fogColor.copy(currentLightState.fogColor);
+    startLightState.dirIntensity = currentLightState.dirIntensity;
+    startLightState.hemiIntensity = currentLightState.hemiIntensity;
+    startLightState.fogDensity = currentLightState.fogDensity;
+    lightTransitionStartTime = performance.now();
+}
 
 let biomeTemplates = {
     nature: { models: [], details: [] },
@@ -108,60 +153,46 @@ let biomeTemplates = {
 
 // Altera o bioma, pinta o chão, névoa e ajusta a iluminação dinamicamente
 export function setActiveBiome(biomeName) {
+    beginLightTransition();
     activeBiome = biomeName;
 
-    // 1. PINTA O CHÃO INFINITO DE ACORDO COM A FASE
-    if (groundPlane && groundPlane.material) {
-        let groundColor = 0x557a2b; // Verde Grama (Floresta)
-        if (biomeName === 'suburban') groundColor = 0x8a7d6e; // Cinza-Terra
-        if (biomeName === 'industrial') groundColor = 0x6a6d73; // Cinza Cimento
-        if (biomeName === 'city') groundColor = 0x5d5e62; // Asfalto escuro
-        
-        groundPlane.material.color.setHex(groundColor);
+    if (biomeName === 'nature') {
+        // 7h-8h: Manhã suave, sol amarelo pastel, chão gramado mais vivo
+        targetLightState.dirColor.setHex(0xfff1b5);
+        targetLightState.dirIntensity = 1.1;
+        targetLightState.hemiColor.setHex(0xdbe9f4);
+        targetLightState.hemiGround.setHex(0x6b8f35);
+        targetLightState.hemiIntensity = 0.6;
+        targetLightState.fogDensity = 0;
     }
-
-    // 2. AJUSTE DE CLIMA, ILUMINAÇÃO E ATIVAÇÃO DE NEBLINA DINÂMICA
-    if (dirLight && hemisphereLight) {
-        let skyColor = 0x87CEEB; 
-        
-        if (scene) {
-            if (biomeName === 'nature') {
-                skyColor = 0x87CEEB; // Azul ensolarado
-                dirLight.color.setHex(0xfcecca);
-                dirLight.intensity = 1.15; // Sol quente forte
-                hemisphereLight.intensity = 0.5;
-                scene.fog = null; // Sem neblina na floresta
-            } 
-            else if (biomeName === 'suburban') {
-                skyColor = 0xa1c6e7; // Azul claro
-                dirLight.color.setHex(0xfcfbe3);
-                dirLight.intensity = 0.90; // Um pouco mais fraco no subúrbio
-                hemisphereLight.intensity = 0.45;
-                scene.fog = null; // Sem neblina no subúrbio
-            } 
-            else if (biomeName === 'industrial') {
-                skyColor = 0x9aa4b0; // Cinza poluído
-                dirLight.color.setHex(0xe1ecf0);
-                dirLight.intensity = 0.70; // Luz cinza fraca
-                hemisphereLight.intensity = 0.40;
-                
-                // LEVE NEBLINA pontual exclusiva do industrial para simular atmosfera poluída
-                scene.fog = new THREE.FogExp2('#9aa4b0', 0.005); 
-            } 
-            else if (biomeName === 'city') {
-                skyColor = 0xfcd2dc; // Golden hour (Rosa do entardecer)
-                dirLight.color.setHex(0xfcd2dc);
-                dirLight.intensity = 0.85; // Luz suave dourada
-                hemisphereLight.intensity = 0.45;
-                scene.fog = null; // Sem neblina na cidade
-            }
-
-            // Atualiza o background e a cor da névoa
-            scene.background.setHex(skyColor);
-            if (scene.fog) {
-                scene.fog.color.setHex(skyColor);
-            }
-        }
+    else if (biomeName === 'suburban') {
+        // 12h: Sol do meio-dia, amarelo forte e alegre, grama seca e iluminada
+        targetLightState.dirColor.setHex(0xfce292);
+        targetLightState.dirIntensity = 1.3;
+        targetLightState.hemiColor.setHex(0xc4e0f2);
+        targetLightState.hemiGround.setHex(0x7d9440);
+        targetLightState.hemiIntensity = 0.65;
+        targetLightState.fogDensity = 0;
+    } 
+    else if (biomeName === 'industrial') {
+        // Dia nublado: sol fraco e frio, muita luz de ambiente, névoa fina de leve poluição
+        targetLightState.dirColor.setHex(0xdcf2f7);
+        targetLightState.dirIntensity = 0.65;
+        targetLightState.hemiColor.setHex(0xb4bcc0);
+        targetLightState.hemiGround.setHex(0x7a7e80);
+        targetLightState.hemiIntensity = 1.0;
+        targetLightState.fogColor.setHex(0xb2b6b4);
+        targetLightState.fogDensity = 0.003;
+    } 
+    else if (biomeName === 'city') {
+        // Golden hour: sol dourado de fim de tarde, sombras com ambiente malva suave, bruma quente
+        targetLightState.dirColor.setHex(0xffd987);
+        targetLightState.dirIntensity = 1.3;
+        targetLightState.hemiColor.setHex(0xb89aa8);
+        targetLightState.hemiGround.setHex(0x6f6a55);
+        targetLightState.hemiIntensity = 0.6;
+        targetLightState.fogColor.setHex(0xe0b48a);
+        targetLightState.fogDensity = 0.0015;
     }
 }
 
@@ -190,7 +221,7 @@ export function createWorld(scene) {
         conf.models.forEach((file) => {
             loader.load(conf.folder + file, (gltf) => {
                 const model = gltf.scene;
-                normalizeScenery(model, bKey === 'nature' ? 3.2 : 6.5);
+                normalizeScenery(model, bKey === 'nature' ? 2.8 : 6.5);
                 biomeTemplates[bKey].models.push(model);
             });
         });
@@ -220,9 +251,8 @@ export function createWorld(scene) {
         'assets/sprite/road/light-square.glb',
         (gltf) => {
             const streetlight = gltf.scene;
-            normalizeScenery(streetlight, 5.0);
+            normalizeScenery(streetlight, 3.2);
             streetlightTemplate = streetlight;
-            console.log("Template do Poste de Luz carregado com sucesso!");
         },
         undefined,
         (error) => {
@@ -236,6 +266,13 @@ export function createWorld(scene) {
         function (gltf) {
             const baseModel = gltf.scene;
             baseModel.scale.set(LARGURA, ALTURA, LARGURA);
+
+            // Faz a rua (asfalto e calçada) receber sombra. Os clones herdam a flag.
+            baseModel.traverse((child) => {
+                if (child.isMesh) {
+                    child.receiveShadow = true;
+                }
+            });
 
             const box = new THREE.Box3().setFromObject(baseModel);
             const bordaDoAsfalto = box.max.x; 
@@ -251,15 +288,25 @@ export function createWorld(scene) {
                 opacity: 0.5
             });
 
+            // Otimização: InstancedMesh para as linhas (1 Draw Call em vez de 120)
+            const linesPerLane = Math.floor(ROAD_LENGTH / 6);
+            const totalLines = lineXPositions.length * linesPerLane;
+            const instancedLines = new THREE.InstancedMesh(lineGeometry, lineMaterial, totalLines);
+            instancedLines.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+            
+            const dummy = new THREE.Object3D();
+            let lineIdx = 0;
             for (let x of lineXPositions) {
                 for (let z = -ROAD_LENGTH / 2; z < ROAD_LENGTH / 2; z += 6) {
-                    const line = new THREE.Mesh(lineGeometry, lineMaterial);
-                    line.rotation.x = -Math.PI / 2;
-                    line.position.set(x, ROAD_HEIGHT, z); 
-                    roadGroup.add(line);
-                    dashedLines.push(line);
+                    dummy.position.set(x, ROAD_HEIGHT, z);
+                    dummy.rotation.x = -Math.PI / 2;
+                    dummy.updateMatrix();
+                    instancedLines.setMatrixAt(lineIdx++, dummy.matrix);
                 }
             }
+            roadGroup.add(instancedLines);
+            // Salva no array como único item para o loop movimentar a esteira inteira
+            dashedLines.push(instancedLines);
 
             for (let i = 0; i < NUM_PIECES; i++) {
                 const zPos = (i * PIECE_LENGTH) - (ROAD_LENGTH / 2);
@@ -295,6 +342,44 @@ export function createWorld(scene) {
 export function updateWorld() { 
     if (!roadGroup) return;
 
+    // --- SISTEMA DE FADE SUAVE DA ILUMINAÇÃO ---
+    if (dirLight && hemisphereLight && scene.fog) {
+        // Progresso da transição (0 a 1) calculado pelo tempo real, igual em qualquer tela
+        const rawProgress = Math.min((performance.now() - lightTransitionStartTime) / LIGHT_TRANSITION_MS, 1);
+        // Curva suave nas duas pontas: começa devagar, acelera no meio e assenta devagar
+        const eased = rawProgress * rawProgress * (3 - 2 * rawProgress);
+
+        // Cores: da foto inicial até o alvo
+        currentLightState.dirColor.lerpColors(startLightState.dirColor, targetLightState.dirColor, eased);
+        currentLightState.hemiColor.lerpColors(startLightState.hemiColor, targetLightState.hemiColor, eased);
+        currentLightState.hemiGround.lerpColors(startLightState.hemiGround, targetLightState.hemiGround, eased);
+        currentLightState.fogColor.lerpColors(startLightState.fogColor, targetLightState.fogColor, eased);
+
+        // Intensidades e neblina: da foto inicial até o alvo
+        currentLightState.dirIntensity = startLightState.dirIntensity + (targetLightState.dirIntensity - startLightState.dirIntensity) * eased;
+        currentLightState.hemiIntensity = startLightState.hemiIntensity + (targetLightState.hemiIntensity - startLightState.hemiIntensity) * eased;
+        currentLightState.fogDensity = startLightState.fogDensity + (targetLightState.fogDensity - startLightState.fogDensity) * eased;
+
+        // Aplica o resultado em tempo real no Motor do Jogo
+        dirLight.color.copy(currentLightState.dirColor);
+        dirLight.intensity = currentLightState.dirIntensity;
+        
+        hemisphereLight.color.copy(currentLightState.hemiColor);
+        hemisphereLight.groundColor.copy(currentLightState.hemiGround);
+        hemisphereLight.intensity = currentLightState.hemiIntensity;
+
+        scene.fog.color.copy(currentLightState.fogColor);
+        // Respiração lenta da névoa (±15%, ciclo de uns 16s). Como é proporcional à densidade,
+        // só aparece onde há névoa (Indústria e Cidade) e não mexe nos outros biomas.
+        const fogBreath = 1 + 0.15 * Math.sin(performance.now() / 2500);
+        scene.fog.density = currentLightState.fogDensity * fogBreath;
+        
+        // Colore o chão liso base pra acompanhar o horizonte
+        if (groundPlane && groundPlane.material) {
+            groundPlane.material.color.copy(currentLightState.hemiGround);
+        }
+    }
+
     // Decide a velocidade alvo de cruzeiro com base na câmera ativa
     let targetCruiseSpeed = 0.50;
     if (currentPresetIndex === 1) targetCruiseSpeed = 0.65;
@@ -307,12 +392,15 @@ export function updateWorld() {
         currentSpeed += (targetCruiseSpeed - currentSpeed) * ACCEL_RATE;
     }
 
-    dashedLines.forEach(line => {
-        line.position.z -= currentSpeed; 
-        if (line.position.z < -ROAD_LENGTH / 2) {
-            line.position.z += ROAD_LENGTH;
+    // Otimização do Treadmill (Esteira) para as linhas Instanciadas
+    if (dashedLines.length > 0) {
+        const instancedLines = dashedLines[0];
+        instancedLines.position.z -= currentSpeed;
+        // O espaçamento é 6. Ao andar -6 unidades, recuamos +6 para criar um loop invisível
+        if (instancedLines.position.z < -6) {
+            instancedLines.position.z += 6;
         }
-    });
+    }
 
     roadPieces.forEach((piece, i) => { 
         piece.left.position.z -= currentSpeed;
@@ -356,14 +444,27 @@ function normalizeScenery(model, targetSize) {
     });
 }
 
+const buildingBox = new THREE.Box3();
+
+// Posiciona o prédio pela caixa dele, e não pela origem do .glb: a borda mais próxima da rua
+// fica em xNearEdge e o prédio fica centrado ao longo da pista. A altura (y) não muda.
+function placeBuildingByBox(decor, xNearEdge) {
+    decor.position.set(0, 0.6, 0);
+    buildingBox.setFromObject(decor);
+    decor.position.x = xNearEdge - buildingBox.max.x;
+    decor.position.z = -(buildingBox.min.z + buildingBox.max.z) / 2;
+}
+
 function decoratePiece(piece, biomeName, pieceIndex) { 
     // 1. Limpa todas as decorações antigas existentes para evitar memory leaks
-    if (piece.leftDecor) piece.left.remove(piece.leftDecor); 
+        if (piece.leftDecor) piece.left.remove(piece.leftDecor); 
     if (piece.rightDecor) piece.right.remove(piece.rightDecor); 
     if (piece.leftDetail) piece.left.remove(piece.leftDetail); 
     if (piece.rightDetail) piece.right.remove(piece.rightDetail);
+    piece.leftDecor = piece.rightDecor = piece.leftDetail = piece.rightDetail = null;
 
     if (piece.leftDecorations) {
+
         piece.leftDecorations.forEach(item => piece.left.remove(item));
     }
     piece.leftDecorations = [];
@@ -404,7 +505,7 @@ function decoratePiece(piece, biomeName, pieceIndex) {
                 const localZ = (Math.random() - 0.5) * 4.0;
 
                 // Variação orgânica de tamanho (0.8x a 1.25x) e rotação livre (360 graus)
-                const randScale = 0.8 + Math.random() * 0.45;
+                const randScale = 0.75 + Math.random() * 0.35;
                 clone.scale.multiplyScalar(randScale);
                 clone.rotation.y = Math.random() * Math.PI * 2;
 
@@ -437,18 +538,35 @@ function decoratePiece(piece, biomeName, pieceIndex) {
         const spacingModulo = (biomeName === 'suburban') ? 5 : 7;
         shouldSpawnDecor = (pieceIndex % spacingModulo === 0);
 
-        let xOffsetLeft = isStraightView ? -3.2 : -5.0;
-        let xOffsetRight = isStraightView ? -3.2 : -5.0;
+        // Cidade e Indústria: a margem é a distância da borda do prédio até a calçada (posicionado pela caixa).
+        // A peça da rua multiplica o x por 4,5, então 0,1 aqui vale cerca de 0,45 unidade na tela.
+        const alignByBox = (biomeName === 'city' || biomeName === 'industrial');
+        const baseMargin = (biomeName === 'suburban') ? 2.4 : 0.5;
+        const diagonalExtra = alignByBox ? 0.4 : 0.8;
+        let xOffsetLeft = isStraightView ? -baseMargin : -(baseMargin + diagonalExtra);
+        let xOffsetRight = isStraightView ? -baseMargin : -(baseMargin + diagonalExtra);
+        const footprint = 0.6;
+        // Giro para a frente do prédio olhar a pista. Cada pacote de modelos tem a frente em um eixo.
+        const FACE_STREET_BY_BIOME = { suburban: Math.PI / 2, industrial: Math.PI, city: Math.PI };
+        const FACE_STREET = FACE_STREET_BY_BIOME[biomeName];
 
         if (shouldSpawnDecor) {
             const leftModelTemp = templates.models[Math.floor(Math.random() * templates.models.length)];
             piece.leftDecor = leftModelTemp.clone();
-            piece.leftDecor.position.set(xOffsetLeft, 0.6, 0);
+            piece.leftDecor.scale.x *= footprint;
+            piece.leftDecor.scale.z *= footprint;
+            piece.leftDecor.rotation.y = FACE_STREET;
+            if (alignByBox) placeBuildingByBox(piece.leftDecor, xOffsetLeft);
+            else piece.leftDecor.position.set(xOffsetLeft, 0.6, 0);
             piece.left.add(piece.leftDecor);
 
             const rightModelTemp = templates.models[Math.floor(Math.random() * templates.models.length)];
             piece.rightDecor = rightModelTemp.clone();
-            piece.rightDecor.position.set(xOffsetRight, 0.6, 0);
+            piece.rightDecor.scale.x *= footprint;
+            piece.rightDecor.scale.z *= footprint;
+            piece.rightDecor.rotation.y = FACE_STREET;
+            if (alignByBox) placeBuildingByBox(piece.rightDecor, xOffsetRight);
+            else piece.rightDecor.position.set(xOffsetRight, 0.6, 0);
             piece.right.add(piece.rightDecor);
         }
 
@@ -507,8 +625,6 @@ export function spawnMacumbaSpecialEvent() {
     group.position.set(spawnX, ROAD_HEIGHT, 120); // Surge lá atrás no horizonte (Z = 120)
     scene.add(group);
     activeSpecialScenery.push(group);
-
-    console.log("Macumba especial de 15 segundos gerada na calçada!");
 }
 
 export function resetWorldScenery() { 
@@ -522,17 +638,16 @@ export function resetWorldScenery() {
     });
     activeSpecialScenery = [];
 
-    let lineIndex = 0;
-    const posicaoDaLinha = 3.5; 
-    const lineXPositions = [-posicaoDaLinha, posicaoDaLinha]; 
+    // Limpa as marcas de pneu acumuladas (Bug fix)
+    tireMarks.forEach(mark => {
+        roadGroup.remove(mark);
+        // O material e geometria agora são únicos (shared), não damos dispose aqui
+    });
+    tireMarks = [];
 
-    for (let x of lineXPositions) {
-        for (let z = -ROAD_LENGTH / 2; z < ROAD_LENGTH / 2; z += 6) {
-            if (dashedLines[lineIndex]) {
-                dashedLines[lineIndex].position.set(x, ROAD_HEIGHT, z);
-            }
-            lineIndex++;
-        }
+    // Otimização: Só zera a posição da esteira das linhas
+    if (dashedLines.length > 0) {
+        dashedLines[0].position.z = 0;
     }
 
     roadPieces.forEach((piece, i) => {
@@ -547,21 +662,10 @@ export function resetWorldScenery() {
 export function addTireMark(x) { 
     if (!roadGroup) return;
 
-    const geometry = new THREE.PlaneGeometry(0.3, 1.2); 
-    const material = new THREE.MeshBasicMaterial({
-        color: 0x111111,
-        transparent: true,
-        opacity: 0.23,
-        depthWrite: false,
-        polygonOffset: true,
-        polygonOffsetFactor: -1,
-        polygonOffsetUnits: -1
-    });
-
-    const mark = new THREE.Mesh(geometry, material);
+    const mark = new THREE.Mesh(sharedTireGeo, sharedTireMat);
     mark.rotation.x = -Math.PI / 2; 
 
-    mark.position.set(x, 2.41, 0); 
+    mark.position.set(x, 2.41, 0);  
 
     roadGroup.add(mark);
     tireMarks.push(mark);
