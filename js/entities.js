@@ -3,14 +3,14 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { currentSpeed, addTireMark } from './world.js';
 import { scene } from './engine.js';
 
-export let truckModel = null;
+let truckModel = null;
 
 // --- VARIÁVEIS E FROTA DE OBSTÁCULOS ---
 const OBSTACLE_NAMES = [
     'hatchback-sports.glb', 'sedan.glb', 'suv-luxury.glb', 'suv.glb', 'taxi.glb',
     'truck-flat.glb', 'truck.glb', 'van.glb'
 ];
-export let obstacleTemplates = [];
+let obstacleTemplates = [];
 let activeObstacles = [];
 let garbageTruckTemplate = null;
 const loader = new GLTFLoader();
@@ -23,73 +23,78 @@ const HEALTHY_FOODS = [
     'eggplant.glb', 'fish.glb', 'grapes.glb', 'leek.glb', 'lemon.glb',
     'loaf-baguette.glb', 'loaf-round.glb', 'loaf.glb', 'meat-raw.glb', 'onion.glb',
     'orange.glb', 'paprika.glb', 'pear.glb', 'pepper.glb', 'pineapple.glb',
-    'pudding.glb', 'pumpkin.glb', 'radish.glb', 'soda-bottle.glb', 'soda-can.glb',
-    'strawberry.glb', 'sub.glb', 'tomato.glb', 'watermelon.glb'
+    'pumpkin.glb', 'radish.glb', 'soda-bottle.glb', 'soda-can.glb',
+    'strawberry.glb', 'tomato.glb', 'watermelon.glb'
 ];
 
-const NEGATIVE_FOODS = [
-    { file: 'advocado-half.glb', msg: 'Hey... Isso já foi manipulado!', penalty: 20 },
-    { file: 'apple-half.glb', msg: 'Hey... Isso já foi manipulado!', penalty: 20 },
-    { file: 'coconut-half.glb', msg: 'Hey... Isso já foi manipulado!', penalty: 20 },
-    { file: 'lemon-half.glb', msg: 'Hey... Isso já foi manipulado!', penalty: 20 },
-    { file: 'paprika-slice.glb', msg: 'Hey... Isso já foi manipulado!', penalty: 20 },
-    { file: 'pear-half.glb', msg: 'Hey... Isso já foi manipulado!', penalty: 20 },
-    { file: 'onion-half.glb', msg: 'Hey... Isso já foi manipulado!', penalty: 20 },
-    { file: 'tomato-slice.glb', msg: 'Hey... Isso já foi manipulado!', penalty: 20 },
-    { file: 'bowl-broth.glb', msg: 'Não coletamos refeições prontas.', penalty: 10 },
-    { file: 'burger.glb', msg: 'Não coletamos lanches prontos.', penalty: 10 },
-    { file: 'chinese.glb', msg: 'Não coletamos refeições prontas.', penalty: 10 },
-    { file: 'egg-cooked.glb', msg: 'Não coletamos alimentos que já foram preparados', penalty: 10 },
-    { file: 'fries.glb', msg: 'Não coletamos refeições prontas.', penalty: 10 },
-    { file: 'hot-dog.glb', msg: 'Não coletamos lanches prontos.', penalty: 10 },
-    { file: 'meat-ribs.glb', msg: 'Não coletamos alimentos que já foram preparados', penalty: 10 },
-    { file: 'rice-ball.glb', msg: 'Não coletamos alimentos que já foram preparados', penalty: 10 },
-    { file: 'sandwich.glb', msg: 'Não coletamos lanches prontos.', penalty: 10 },
-    { file: 'sushi-egg.glb', msg: 'Não coletamos alimentos que já foram preparados', penalty: 10 },
-    { file: 'taco.glb', msg: 'Não coletamos lanches prontos.', penalty: 10 },
-    { file: 'turkey.glb', msg: 'Não coletamos alimentos que já foram preparados', penalty: 10 },
-    { file: 'can-open.glb', msg: 'A embalagem já está aberta!', penalty: 20 },
-    { file: 'candy-bar-wrapper.glb', msg: 'A embalagem já está aberta!', penalty: 20 },
-    { file: 'chocolate-wrapper.glb', msg: 'A embalagem já está aberta!', penalty: 20 },
-    { file: 'donut-sprinkles.glb', msg: 'Não coletamos doces com recheio!', penalty: 10 },
-    { file: 'cake.glb', msg: 'Não coletamos doces com recheio!', penalty: 10 },
-    { file: 'wine-red.glb', msg: 'NÃO COLETAMOS ISSO!', penalty: 50 },
-    { file: 'wine-white.glb', msg: 'NÃO COLETAMOS ISSO!', penalty: 50 },
-    { file: 'mushroom-half.glb', msg: 'NÃO COLETAMOS ISSO!', penalty: 50 },
-    { file: 'mushroom.glb', msg: 'NÃO COLETAMOS ISSO!', penalty: 50 },
-    { file: 'styrofoam-dinner.glb', msg: 'HAHAHA! O "Mesa São Paulo" entregava isso em 1994, hoje não mais!', penalty: 0 },
-    { file: 'egg-half.glb', msg: 'Espera... isso aí é lixo!', penalty: 20 },
-    { file: 'fish-bones.glb', msg: 'Espera... isso aí é lixo!', penalty: 20 },
-    { file: 'soda-can-crushed.glb', msg: 'Espera... isso aí é lixo!', penalty: 20 }
+export const NEGATIVE_FOODS = [
+    { file: 'advocado-half.glb', msg: 'Hey... Isso já foi manipulado!', penalty: 20, category: 'manipulado' },
+    { file: 'apple-half.glb', msg: 'Hey... Isso já foi manipulado!', penalty: 20, category: 'manipulado' },
+    { file: 'coconut-half.glb', msg: 'Hey... Isso já foi manipulado!', penalty: 20, category: 'manipulado' },
+    { file: 'lemon-half.glb', msg: 'Hey... Isso já foi manipulado!', penalty: 20, category: 'manipulado' },
+    { file: 'paprika-slice.glb', msg: 'Hey... Isso já foi manipulado!', penalty: 20, category: 'manipulado' },
+    { file: 'pear-half.glb', msg: 'Hey... Isso já foi manipulado!', penalty: 20, category: 'manipulado' },
+    { file: 'onion-half.glb', msg: 'Hey... Isso já foi manipulado!', penalty: 20, category: 'manipulado' },
+    { file: 'tomato-slice.glb', msg: 'Hey... Isso já foi manipulado!', penalty: 20, category: 'manipulado' },
+    { file: 'bowl-broth.glb', msg: 'Não coletamos refeições prontas.', penalty: 10, category: 'preparado' },
+    { file: 'burger.glb', msg: 'Não coletamos lanches prontos.', penalty: 10, category: 'lanche' },
+    { file: 'chinese.glb', msg: 'Não coletamos refeições prontas.', penalty: 10, category: 'preparado' },
+    { file: 'egg-cooked.glb', msg: 'Não coletamos alimentos que já foram preparados', penalty: 10, category: 'preparado' },
+    { file: 'fries.glb', msg: 'Não coletamos refeições prontas.', penalty: 10, category: 'preparado' },
+    { file: 'hot-dog.glb', msg: 'Não coletamos lanches prontos.', penalty: 10, category: 'lanche' },
+    { file: 'meat-ribs.glb', msg: 'Não coletamos alimentos que já foram preparados', penalty: 10, category: 'preparado' },
+    { file: 'rice-ball.glb', msg: 'Não coletamos alimentos que já foram preparados', penalty: 10, category: 'preparado' },
+    { file: 'sandwich.glb', msg: 'Não coletamos lanches prontos.', penalty: 10, category: 'lanche' },
+    { file: 'sushi-egg.glb', msg: 'Não coletamos alimentos que já foram preparados', penalty: 10, category: 'preparado' },
+    { file: 'taco.glb', msg: 'Não coletamos lanches prontos.', penalty: 10, category: 'lanche' },
+    { file: 'sub.glb', folder: 'food', msg: 'Não coletamos lanches prontos.', penalty: 10, category: 'lanche' },
+    { file: 'turkey.glb', msg: 'Não coletamos alimentos que já foram preparados', penalty: 10, category: 'preparado' },
+    { file: 'can-open.glb', msg: 'A embalagem já está aberta!', penalty: 20, category: 'aberto' },
+    { file: 'candy-bar-wrapper.glb', msg: 'A embalagem já está aberta!', penalty: 20, category: 'aberto' },
+    { file: 'chocolate-wrapper.glb', msg: 'A embalagem já está aberta!', penalty: 20, category: 'aberto' },
+    { file: 'donut-sprinkles.glb', msg: 'Não coletamos doces com recheio!', penalty: 10, category: 'doce' },
+    { file: 'cake.glb', msg: 'Não coletamos doces com recheio!', penalty: 10, category: 'doce' },
+    { file: 'pudding.glb', folder: 'food', msg: 'Não coletamos doces com recheio!', penalty: 10, category: 'doce' },
+    { file: 'wine-red.glb', msg: 'NÃO COLETAMOS ISSO!', penalty: 50, category: 'super' },
+    { file: 'wine-white.glb', msg: 'NÃO COLETAMOS ISSO!', penalty: 50, category: 'super' },
+    { file: 'mushroom-half.glb', msg: 'NÃO COLETAMOS ISSO!', penalty: 50, category: 'super' },
+    { file: 'mushroom.glb', msg: 'NÃO COLETAMOS ISSO!', penalty: 50, category: 'super' },
+    { file: 'styrofoam-dinner.glb', msg: 'HAHAHA! O "Mesa São Paulo" entregava isso em 1994, hoje não mais!', penalty: 0, category: 'easterEgg' },
+    { file: 'egg-half.glb', msg: 'Espera... isso aí é lixo!', penalty: 20, category: 'lixo' },
+    { file: 'fish-bones.glb', msg: 'Espera... isso aí é lixo!', penalty: 20, category: 'lixo' },
+    { file: 'soda-can-crushed.glb', msg: 'Espera... isso aí é lixo!', penalty: 20, category: 'lixo' }
 ];
+
 
 // --- SISTEMA EVENTO CAMINHÃO DE LIXO (BOSS) ---
-export let activeGarbageTruck = null;
+let activeGarbageTruck = null;
 let garbageTruckState = 'idle';
 let garbageCount = 0;
 let garbageDropTimer = 0;
-let garbageLaneTimer = 0;
 let garbageTargetLaneX = 0;
+let garbageTotalToDrop = 5;
+let garbageLastDropLaneX = null;
+let garbageEventsThisGame = 0;
 let onEventCompleteCallback = null;
 
 // --- SISTEMA EVENTO CARRO DE POLÍCIA ---
 let policeTemplate = null;
-export let activePolice = null;
+let activePolice = null;
 let policeState = 'idle';
 let policeTargetX = 0;
 let onPoliceCompleteCallback = null;
 
 // --- SISTEMA EVENTO AMBULÂNCIA ---
 let ambulanceTemplate = null;
-export let activeAmbulance = null;
+let activeAmbulance = null;
 let ambulanceState = 'idle';
 let ambulancePassed = false;
 let onAmbulanceCompleteCallback = null;
 let ambulanceTargetX = 0;
 
-export let healthyTemplates = {};
-export let negativeTemplates = {};
-export let activeItems = [];
+let healthyTemplates = {};
+let negativeTemplates = {};
+let activeItems = [];
 
 // Permite ao main.js controlar o ângulo de curva do caminhão
 export function setTruckTransitionTurn(angle) { 
@@ -99,7 +104,7 @@ export function setTruckTransitionTurn(angle) {
 const itemBox = new THREE.Box3();
 
 // --- FUNÇÃO AUXILIAR: TAMANHO UNIVERSAL COM SUPORTE A MATRIZ ATIVA ---
-function normalizeAndBrighten(model, targetSize = 3.2) { 
+function normalizeAndBrighten(model, targetSize = 4.0) { 
     scene.add(model);
     model.updateMatrixWorld(true);
 
@@ -118,9 +123,15 @@ function normalizeAndBrighten(model, targetSize = 3.2) {
             child.castShadow = true;
             child.receiveShadow = true;
 
-            child.material.emissive = new THREE.Color(0x3a3a3a); 
-            child.material.emissiveIntensity = 0.65;             
-            child.material.roughness = 0.25;
+                        // Brilho próprio na cor real do item (sem véu branco): reaproveita a textura ou a cor base
+            if (child.material.map) {
+                child.material.emissive = new THREE.Color(0xffffff);
+                child.material.emissiveMap = child.material.map;
+            } else if (child.material.color) {
+                child.material.emissive = child.material.color.clone();
+            }
+            child.material.emissiveIntensity = 0.2;
+            child.material.roughness = 0.6; // Material mais natural
         }
     });
 }
@@ -129,70 +140,60 @@ const playerBox = new THREE.Box3();
 const obstacleBox = new THREE.Box3();
 
 // --- SISTEMA DE PISTAS ---
-export let currentLanes = [7, 0, -7]; 
+let currentLanes = [7, 0, -7]; 
 let currentLaneIndex = 1;
 let targetX = 0.0;
 
 // --- FISICA DE CURVA EM TRANSIÇÃO ---
 let targetTruckRotationY = 0;
 
-export function updateLaneOffsets(isFlipped) { 
-    currentLanes = [7, 0, -7]; 
-}
-
 const LERP_SPEED = 0.15;
 const MAX_ROLL = 0.10;
 const ROLL_SPEED = 0.08;
 
-export function createEntities(scene) { 
-    // CAMINHÃO DO JOGADOR
+// Escala de todos os veículos (caminhão, carros, lixeiro, polícia e ambulância). Era 2.5.
+const VEHICLE_SCALE = 2.8;
+ 
+// Carrega qualquer veículo com o mesmo padrão (escala 2.5 e sombras)
+function loadVehicle(path, label, onLoaded) { 
     loader.load(
-        'assets/model/car/mycar/truck.glb', 
-        function (gltf) { 
-            truckModel = gltf.scene;
-            truckModel.scale.set(2.5, 2.5, 2.5); 
-            truckModel.position.set(0, 2.5, 0);
+        path,
+        (gltf) => {
+            const model = gltf.scene;
+            model.scale.set(VEHICLE_SCALE, VEHICLE_SCALE, VEHICLE_SCALE);
+            model.rotation.y = 0;
 
-            truckModel.traverse((child) => {
+            model.traverse((child) => {
                 if (child.isMesh) {
                     child.castShadow = true;
                     child.receiveShadow = true;
                 }
             });
 
-            scene.add(truckModel);
+            onLoaded(model);
         },
-        undefined, 
-        function (error) {
-            console.error('Erro ao carregar o caminhão: ', error);
+        undefined,
+        (error) => {
+            console.error(`Erro ao carregar ${label}: `, error);
         }
     );
+}
+
+export function createEntities(scene) { 
+    // CAMINHÃO DO JOGADOR
+    loadVehicle('assets/model/car/mycar/truck.glb', 'o caminhão', (model) => {
+        truckModel = model;
+        truckModel.position.set(0, 2.5, 0);
+        scene.add(truckModel);
+    });
 
     // FROTA DE CARROS
     OBSTACLE_NAMES.forEach((fileName) => {
-        loader.load(
-            `assets/model/car/${fileName}`,
-            function (gltf) {
-                const template = gltf.scene;
-                template.scale.set(2.5, 2.5, 2.5);
-                template.rotation.y = 0; 
-
-                template.traverse((child) => {
-                    if (child.isMesh) {
-                        child.castShadow = true;
-                        child.receiveShadow = true;
-                    }
-                });
-
-                obstacleTemplates.push(template);
-                console.log(`Carro ${fileName} carregado com sucesso!`);
-            },
-            undefined,
-            function (error) {
-                console.error(`Erro ao carregar o carro ${fileName}: `, error);
-            }
-        );
+        loadVehicle(`assets/model/car/${fileName}`, `o carro ${fileName}`, (model) => {
+            obstacleTemplates.push(model);
+        });
     });
+
 
     // DOAÇÕES SAUDÁVEIS
     HEALTHY_FOODS.forEach((file) => {
@@ -201,13 +202,7 @@ export function createEntities(scene) {
             path, 
             (gltf) => {
                 const temp = gltf.scene;
-                normalizeAndBrighten(temp, 3.2);
-                temp.traverse((child) => {
-                    if (child.isMesh) {
-                        child.castShadow = true;
-                        child.receiveShadow = true;
-                    }
-                });
+                normalizeAndBrighten(temp, 3.2);               
                 healthyTemplates[file] = temp;
             },
             undefined,
@@ -219,18 +214,12 @@ export function createEntities(scene) {
 
     // ALIMENTOS PROIBIDOS
     NEGATIVE_FOODS.forEach((item) => {
-        const path = `assets/sprite/negativefood/${item.file}`;
+        const path = `assets/sprite/${item.folder || 'negativefood'}/${item.file}`;
         loader.load(
             path, 
             (gltf) => {
                 const temp = gltf.scene;
                 normalizeAndBrighten(temp, 3.2);
-                temp.traverse((child) => {
-                    if (child.isMesh) {
-                        child.castShadow = true;
-                        child.receiveShadow = true;
-                    }
-                });
                 negativeTemplates[item.file] = temp;
             },
             undefined,
@@ -240,71 +229,21 @@ export function createEntities(scene) {
         );
     });
 
-    // CAMINHÃO DE LIXO (BOSS)
-    loader.load(
-        'assets/model/car/garbage-truck.glb',
-        function (gltf) {
-            garbageTruckTemplate = gltf.scene;
-            garbageTruckTemplate.scale.set(2.5, 2.5, 2.5); 
-            garbageTruckTemplate.rotation.y = 0; 
-            
-            garbageTruckTemplate.traverse((child) => {
-                if (child.isMesh) {
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-                }
-            });
-            console.log("Template do Caminhão de Lixo carregado com sucesso!");
-        },
-        undefined, 
-        function (error) {
-            console.error('Erro ao carregar o caminhão de lixo: ', error);
-        }
-    );
+        // CAMINHÃO DE LIXO (BOSS)
+    loadVehicle('assets/model/car/garbage-truck.glb', 'o caminhão de lixo', (model) => {
+        garbageTruckTemplate = model;
+    });
 
     // VIATURA DE POLÍCIA
-    loader.load(
-        'assets/model/car/police.glb',
-        function (gltf) {
-            policeTemplate = gltf.scene;
-            policeTemplate.scale.set(2.5, 2.5, 2.5); 
-            policeTemplate.rotation.y = 0; 
-            
-            policeTemplate.traverse((child) => {
-                if (child.isMesh) {
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-                }
-            });
-            console.log("Template da Viatura carregado com sucesso!");
-        },
-        undefined, 
-        function (error) {
-            console.error('Erro ao carregar a viatura: ', error);
-        }
-    );
+    loadVehicle('assets/model/car/police.glb', 'a viatura', (model) => {
+        policeTemplate = model;
+    });
 
     // AMBULÂNCIA
-    loader.load(
-        'assets/model/car/ambulance.glb',
-        function (gltf) {
-            ambulanceTemplate = gltf.scene;
-            ambulanceTemplate.scale.set(2.5, 2.5, 2.5); 
-            ambulanceTemplate.rotation.y = 0; 
-            
-            ambulanceTemplate.traverse((child) => {
-                if (child.isMesh) {
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-                }
-            });
-            console.log("Template da Ambulância carregado com sucesso!");
-        },
-        undefined, 
-        function (error) {
-            console.error('Erro ao carregar a ambulância: ', error);
-        }
-    );
+    loadVehicle('assets/model/car/ambulance.glb', 'a ambulância', (model) => {
+        ambulanceTemplate = model;
+    });
+
 }
 
 export function movePlayerLeft() { 
@@ -368,8 +307,10 @@ export function updateEntities(isBraking, deltaTime = 0.016) {
         item.mesh.position.z -= currentSpeed * frameRatio;
 
         item.spawnTime += 0.05 * frameRatio;
-        item.mesh.position.y = 3.2 + Math.sin(item.spawnTime) * 0.15; 
-        item.mesh.rotation.y = Math.sin(item.spawnTime * 1.3) * 0.785;
+        // Lote 3: Flutuação mais alta e animada
+        item.mesh.position.y = 4.0 + Math.sin(item.spawnTime * 2.0) * 0.35; 
+        // Lote 3: Giro de 360º contínuo (sem aquele "vai e volta" do seno)
+        item.mesh.rotation.y = item.spawnTime * 1.5;
 
         if (item.mesh.position.z < -45) {
             scene.remove(item.mesh);
@@ -388,28 +329,28 @@ export function updateEntities(isBraking, deltaTime = 0.016) {
                 garbageTruckState = 'dropping';
                 garbageCount = 0;
                 garbageDropTimer = 0;
-                garbageLaneTimer = 0;
                 garbageTargetLaneX = activeGarbageTruck.position.x;
+                garbageLastDropLaneX = null;
             }
         } 
         else if (garbageTruckState === 'dropping') {
             activeGarbageTruck.position.x += (garbageTargetLaneX - activeGarbageTruck.position.x) * 0.08 * frameRatio;
-            
-            garbageLaneTimer += deltaTime;
-            if (garbageLaneTimer > 2.2) {
-                garbageLaneTimer = 0;
-                const randomLaneIndex = Math.floor(Math.random() * currentLanes.length);
-                garbageTargetLaneX = currentLanes[randomLaneIndex];
-            }
 
             garbageDropTimer += deltaTime;
-            if (garbageDropTimer > 1.2 && garbageCount < 5) {
+            // Só solta o lixo quando o caminhão já chegou na faixa de destino
+            const reachedLane = Math.abs(garbageTargetLaneX - activeGarbageTruck.position.x) < 0.5;
+            if (garbageDropTimer > 1.2 && reachedLane && garbageCount < garbageTotalToDrop) {
                 garbageDropTimer = 0;
                 garbageCount++;
-                dropGarbageFromTruck(activeGarbageTruck.position.x); 
+                garbageLastDropLaneX = garbageTargetLaneX;
+                dropGarbageFromTruck(garbageTargetLaneX);
+
+                // Próximo lixo: troca para uma faixa diferente da que acabou de usar
+                const otherLanes = currentLanes.filter(l => l !== garbageLastDropLaneX);
+                garbageTargetLaneX = otherLanes[Math.floor(Math.random() * otherLanes.length)];
             }
 
-            if (garbageCount >= 5) {
+            if (garbageCount >= garbageTotalToDrop) {
                 garbageTruckState = 'exiting';
             }
         } 
@@ -433,90 +374,101 @@ export function updateEntities(isBraking, deltaTime = 0.016) {
         }
     }
 
-    // --- INTELIGÊNCIA ARTIFICIAL DA VIATURA DE POLÍCIA ---
-    if (activePolice) {
-        if (policeState === 'racing') {
-            const POLICE_BASE_SPEED = 1.1;
-            const relativeSpeed = (POLICE_BASE_SPEED - currentSpeed) * frameRatio;
-            activePolice.position.z += relativeSpeed; 
+        // --- VIATURA DE POLÍCIA ---
+    if (activePolice && policeState === 'racing') {
+        policeTargetX = steerEmergencyVehicle(activePolice, policeTargetX, 1.1, frameRatio);
 
-            activePolice.position.x += (policeTargetX - activePolice.position.x) * 0.10 * frameRatio;
+        // Retomada Imediata: spawns normais voltam assim que a polícia ultrapassa o jogador
+        if (activePolice.position.z > 25 && onPoliceCompleteCallback) {
+            onPoliceCompleteCallback();
+            onPoliceCompleteCallback = null; // Executa uma única vez
+        }
 
-            for (let obs of activeObstacles) {
-                const sameLane = Math.abs(obs.position.x - activePolice.position.x) < 1.8;
-                const inFront = obs.position.z > activePolice.position.z;
-                const distZ = obs.position.z - activePolice.position.z;
+        if (activePolice.position.z > 120) {
+            scene.remove(activePolice);
+            activePolice = null;
+            policeState = 'idle';
+        }
+    }
 
-                if (sameLane && inFront && distZ < 15) {
-                    const otherLanes = currentLanes.filter(l => Math.abs(l - activePolice.position.x) > 1.8);
-                    if (otherLanes.length > 0) {
-                        policeTargetX = otherLanes[Math.floor(Math.random() * otherLanes.length)];
-                    }
-                    break;
-                }
-            }
+    // --- AMBULÂNCIA ---
+    if (activeAmbulance && ambulanceState === 'racing') {
+        ambulanceTargetX = steerEmergencyVehicle(activeAmbulance, ambulanceTargetX, 0.90, frameRatio);
 
-            // Retomada Imediata: Spawns normais voltam assim que a polícia ultrapassa o jogador
-            if (activePolice.position.z > 25) {
-                if (onPoliceCompleteCallback) {
-                    onPoliceCompleteCallback();
-                    onPoliceCompleteCallback = null; // Executa uma única vez
-                }
-            }
+        // Retomada Imediata: spawns normais voltam assim que a ambulância ultrapassa o jogador
+        if (activeAmbulance.position.z > 25 && onAmbulanceCompleteCallback) {
+            onAmbulanceCompleteCallback();
+            onAmbulanceCompleteCallback = null; // Executa uma única vez
+        }
 
-            if (activePolice.position.z > 120) {
-                scene.remove(activePolice);
-                activePolice = null;
-                policeState = 'idle';
+        if (activeAmbulance.position.z > 120) {
+            scene.remove(activeAmbulance);
+            activeAmbulance = null;
+            ambulanceState = 'idle';
+        }
+    }
+}
+
+// Alcance (em z) em que polícia e ambulância enxergam carros e o jogador à frente
+const EMERGENCY_LOOKAHEAD = 40;
+// Tamanho aproximado do corpo: o veículo ainda conta como "ao lado" logo depois de passar do alvo
+const EMERGENCY_BODY_MARGIN = 6;
+// Ritmo do trânsito (igual ao OBSTACLE_BASE_SPEED de updateEntities), usado quando não há faixa livre
+const FOLLOW_TRAFFIC_SPEED = 0.16;
+
+// Uma faixa está ocupada se há um carro, ou o jogador (na faixa em que está ou para onde vai),
+// à frente do veículo ou emparelhado com ele
+function isLaneBlockedFor(vehicleZ, laneX) {
+    for (const obs of activeObstacles) {
+        const dz = obs.position.z - vehicleZ;
+        if (dz > -EMERGENCY_BODY_MARGIN && dz < EMERGENCY_LOOKAHEAD && Math.abs(obs.position.x - laneX) < 3.5) {
+            return true;
+        }
+    }
+
+    if (truckModel) {
+        const dz = truckModel.position.z - vehicleZ;
+        if (dz > -EMERGENCY_BODY_MARGIN && dz < EMERGENCY_LOOKAHEAD) {
+            if (Math.abs(truckModel.position.x - laneX) < 3.5 || Math.abs(targetX - laneX) < 0.1) {
+                return true;
             }
         }
     }
 
-    // --- MOVIMENTO DA AMBULÂNCIA ---
-    if (activeAmbulance) {
-        if (ambulanceState === 'racing') {
-            const AMBULANCE_BASE_SPEED = 0.90;
-            const relativeSpeed = (AMBULANCE_BASE_SPEED - currentSpeed) * frameRatio;
-            activeAmbulance.position.z += relativeSpeed; 
+    return false;
+}
 
-            // Interpola suavemente a posição X da ambulância para a faixa de destino
-            activeAmbulance.position.x += (ambulanceTargetX - activeAmbulance.position.x) * 0.10 * frameRatio;
+// Movimento e desvio compartilhados pela polícia e pela ambulância.
+// Devolve a faixa de destino (trocada para uma faixa livre quando a atual está ocupada).
+function steerEmergencyVehicle(vehicle, desiredX, baseSpeed, frameRatio) {
+    let newTargetX = desiredX;
+    let speed = baseSpeed;
 
-            // Inteligência Artificial: Desvia de quaisquer outros carros à frente
-            for (let obs of activeObstacles) {
-                const sameLane = Math.abs(obs.position.x - activeAmbulance.position.x) < 1.8;
-                const inFront = obs.position.z > activeAmbulance.position.z;
-                const distZ = obs.position.z - activeAmbulance.position.z;
-
-                if (sameLane && inFront && distZ < 15) {
-                    const otherLanes = currentLanes.filter(l => Math.abs(l - activeAmbulance.position.x) > 1.8);
-                    if (otherLanes.length > 0) {
-                        ambulanceTargetX = otherLanes[Math.floor(Math.random() * otherLanes.length)];
-                    }
-                    break;
-                }
-            }
-
-            if (activeAmbulance.position.z > 0 && !ambulancePassed) {
-                ambulancePassed = true;
-                document.dispatchEvent(new CustomEvent('ambulance-passed'));
-            }
-
-            // Retomada Imediata: Spawns normais voltam assim que a ambulância ultrapassa o jogador
-            if (activeAmbulance.position.z > 25) {
-                if (onAmbulanceCompleteCallback) {
-                    onAmbulanceCompleteCallback();
-                    onAmbulanceCompleteCallback = null; // Executa uma única vez
-                }
-            }
-
-            if (activeAmbulance.position.z > 120) {
-                scene.remove(activeAmbulance);
-                activeAmbulance = null;
-                ambulanceState = 'idle';
+    if (isLaneBlockedFor(vehicle.position.z, desiredX)) {
+        // Procura a faixa livre mais próxima de onde o veículo está agora
+        let bestLane = null;
+        let bestDist = Infinity;
+        for (const laneX of currentLanes) {
+            if (isLaneBlockedFor(vehicle.position.z, laneX)) continue;
+            const dist = Math.abs(laneX - vehicle.position.x);
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestLane = laneX;
             }
         }
+
+        if (bestLane !== null) {
+            newTargetX = bestLane;
+        } else {
+            // Nenhuma faixa livre: acompanha o ritmo do trânsito em vez de bater
+            speed = FOLLOW_TRAFFIC_SPEED;
+        }
     }
+
+    vehicle.position.z += (speed - currentSpeed) * frameRatio;
+    vehicle.position.x += (newTargetX - vehicle.position.x) * 0.10 * frameRatio;
+
+    return newTargetX;
 }
 
 // Instancia um clone aleatório de qualquer carro
@@ -544,32 +496,12 @@ export function checkCollisions() {
     playerBox.setFromObject(truckModel);
     playerBox.expandByScalar(-0.3); 
 
-    for (let obs of activeObstacles) {
-        obstacleBox.setFromObject(obs);
-        obstacleBox.expandByScalar(-0.3);
-        if (playerBox.intersectsBox(obstacleBox)) {
-            return true; 
-        }
-    }
+    const vehicles = [...activeObstacles, activeGarbageTruck, activePolice, activeAmbulance];
 
-    if (activeGarbageTruck) {
-        obstacleBox.setFromObject(activeGarbageTruck);
-        obstacleBox.expandByScalar(-0.3);
-        if (playerBox.intersectsBox(obstacleBox)) {
-            return true;
-        }
-    }
+    for (const vehicle of vehicles) {
+        if (!vehicle) continue;
 
-    if (activePolice) {
-        obstacleBox.setFromObject(activePolice);
-        obstacleBox.expandByScalar(-0.3);
-        if (playerBox.intersectsBox(obstacleBox)) {
-            return true;
-        }
-    }
-
-    if (activeAmbulance) {
-        obstacleBox.setFromObject(activeAmbulance);
+        obstacleBox.setFromObject(vehicle);
         obstacleBox.expandByScalar(-0.3);
         if (playerBox.intersectsBox(obstacleBox)) {
             return true;
@@ -579,6 +511,7 @@ export function checkCollisions() {
     return false; 
 }
 
+
 // Reseta os estados de todos os atores
 export function resetEntities() { 
     if (truckModel) { 
@@ -586,8 +519,6 @@ export function resetEntities() {
         targetX = 0.0;
         truckModel.position.set(0, 2.5, 0); 
         truckModel.rotation.set(0, 0, 0);
-        targetTruckRotationY = 0; 
-        updateLaneOffsets(false); 
     }
 
     if (activeGarbageTruck) {
@@ -619,6 +550,8 @@ export function resetEntities() {
     activeItems = [];
 
     targetTruckRotationY = 0;
+    garbageEventsThisGame = 0; // a "primeira vez" do boss volta a valer na próxima partida
+    garbageLastDropLaneX = null;
 }
 
 // Gera uma doação saudável ou proibida
@@ -632,13 +565,13 @@ export function spawnItem() {
         if (keys.length === 0) return;
         const randomKey = keys[Math.floor(Math.random() * keys.length)];
         selectedTemplate = healthyTemplates[randomKey];
-        itemData = { isHealthy: true, value: 20, msg: '+20 kg', file: randomKey, isGarbage: false };
+        itemData = { isHealthy: true, value: 20, msg: '+20 kg', file: randomKey, category: null, isGarbage: false };
     } else {
-        const loadedNegatives = NEGATIVE_FOODS.filter(item => negativeTemplates[item.file]);
+        const loadedNegatives = NEGATIVE_FOODS.filter(item => item.category !== 'lixo' && negativeTemplates[item.file]);
         if (loadedNegatives.length === 0) return;
         const randomItem = loadedNegatives[Math.floor(Math.random() * loadedNegatives.length)];
         selectedTemplate = negativeTemplates[randomItem.file];
-        itemData = { isHealthy: false, value: -randomItem.penalty, msg: randomItem.msg, file: randomItem.file, isGarbage: false };
+        itemData = { isHealthy: false, value: -randomItem.penalty, msg: randomItem.msg, file: randomItem.file, category: randomItem.category, isGarbage: false };
     }
 
     if (!selectedTemplate) return;
@@ -684,7 +617,11 @@ export function checkItemCollections(onCollectCallback) {
 export function spawnGarbageTruck(onComplete) { 
     if (!garbageTruckTemplate) return;
 
-    onEventCompleteCallback = onComplete; 
+    // 1ª aparição da partida: 5 lixos. Nas seguintes: 7 ou 8
+    garbageEventsThisGame++;
+    garbageTotalToDrop = (garbageEventsThisGame === 1) ? 5 : 7 + Math.floor(Math.random() * 2);
+
+    onEventCompleteCallback = onComplete;
     activeGarbageTruck = garbageTruckTemplate.clone();
 
     const randomLaneIndex = Math.floor(Math.random() * currentLanes.length);
@@ -698,11 +635,11 @@ export function spawnGarbageTruck(onComplete) {
 
 // Lógica de arremesso de dejetos do Boss
 function dropGarbageFromTruck(xPos) { 
-    const garbageFiles = ['egg-half.glb', 'fish-bones.glb', 'soda-can-crushed.glb']; 
-    const randomFile = garbageFiles[Math.floor(Math.random() * garbageFiles.length)]; 
-    const template = negativeTemplates[randomFile];
+    const garbageItems = NEGATIVE_FOODS.filter(item => item.category === 'lixo' && negativeTemplates[item.file]);
+    if (garbageItems.length === 0) return;
 
-    if (!template) return; 
+    const chosen = garbageItems[Math.floor(Math.random() * garbageItems.length)];
+    const template = negativeTemplates[chosen.file];
 
     const itemMesh = template.clone();
     itemMesh.position.set(xPos, 2.4, 18); 
@@ -711,9 +648,10 @@ function dropGarbageFromTruck(xPos) {
 
     const itemData = { 
         isHealthy: false, 
-        value: -20, 
-        msg: "Espera... isso aí é lixo!", 
-        file: randomFile,
+        value: -chosen.penalty, 
+        msg: chosen.msg, 
+        file: chosen.file,
+        category: chosen.category,
         isGarbage: true 
     };
 
@@ -745,7 +683,6 @@ export function spawnAmbulance(laneIndex, onComplete) {
 
     onAmbulanceCompleteCallback = onComplete;
     activeAmbulance = ambulanceTemplate.clone();
-    ambulancePassed = false; 
 
     const xPos = currentLanes[laneIndex];
     activeAmbulance.position.set(xPos, 2.4, -45); 
