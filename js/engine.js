@@ -17,7 +17,7 @@ const CAMERA_PRESETS = [
         playLeft: new THREE.Vector3(-5, 40, -120),
         playRight: new THREE.Vector3(5, 40, -120),
         menuLook: new THREE.Vector3(0, 2.5, 0) 
-    }, 
+    },
     { 
         name: 'chase', 
         menu: new THREE.Vector3(6, 11, 28),
@@ -92,23 +92,34 @@ export function initEngine() {
     hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x333333, 0.45); 
     scene.add(hemisphereLight);
 
+    // Prepara a neblina global (invisível por padrão, esperando o Lerp)
+    scene.fog = new THREE.FogExp2(0xa0a8b0, 0);
+
     dirLight = new THREE.DirectionalLight(0xffffff, 1.1); 
-    dirLight.position.set(-15, 30, 25); 
+    // A luz e o alvo dela andam juntos 22 unidades para a frente (z).
+    // O ângulo do sol continua o mesmo, só muda a região coberta pela sombra.
+    dirLight.position.set(-30, 45, 32);
+    dirLight.target.position.set(0, 0, 22);
     dirLight.castShadow = true;
 
+    // Mapa maior para cobrir uma janela mais ampla à frente do caminhão
     dirLight.shadow.mapSize.width = 1024;
     dirLight.shadow.mapSize.height = 1024;
 
-    dirLight.shadow.camera.left = -20;
-    dirLight.shadow.camera.right = 20;
-    dirLight.shadow.camera.top = 20;
-    dirLight.shadow.camera.bottom = -20;
+    // Eixo esquerda/direita da sombra corre ao longo da pista; cima/baixo cobre as laterais
+    dirLight.shadow.camera.left = -50;
+    dirLight.shadow.camera.right = 50;
+    dirLight.shadow.camera.top = 25;
+    dirLight.shadow.camera.bottom = -25;
     dirLight.shadow.camera.near = 0.5;
-    dirLight.shadow.camera.far = 80;
+    dirLight.shadow.camera.far = 100;
+    dirLight.shadow.camera.updateProjectionMatrix();
 
-    dirLight.shadow.bias = -0.0005;
+    dirLight.shadow.bias = -0.001;
+    dirLight.shadow.normalBias = 0.05;
 
     scene.add(dirLight);
+    scene.add(dirLight.target);
 
     window.addEventListener('resize', onWindowResize, false);
 }
