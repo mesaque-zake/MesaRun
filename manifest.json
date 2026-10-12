@@ -3,7 +3,7 @@
   "short_name": "MesaRun!",
   "description": "Dirija o caminhão do Sesc Mesa Brasil, colete doações e aprenda o que pode doar. Jogue agora!",
   "lang": "pt-BR",
-  "id": "./",
+  "id": "/MesaRun/",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",
