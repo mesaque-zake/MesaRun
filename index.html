@@ -56,57 +56,91 @@
         <div id="ui-layer" class="absolute inset-0 z-10 select-none flex items-center justify-center">
 
             <!-- Camada de Fundo com Blur Reduzido (sm) -->
-            <div id="menu-backdrop" class="absolute inset-0 bg-black/55 backdrop-blur-sm flex flex-col justify-between items-center py-6 transition-opacity duration-500 z-20">
+            <div id="menu-backdrop" class="intro-active absolute inset-0 bg-black/55 backdrop-blur-sm flex flex-col justify-between items-center pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] transition-opacity duration-500 z-20">
+
+                <!-- Camada azul da abertura (a cortina circular a abre) -->
+                <div id="intro-cover" class="intro-cover" aria-hidden="true"></div>
 
                 <!-- Logos no Topo (Setor Superior) -->
                 <div id="top-logos" class="flex flex-col items-center gap-2 pointer-events-none z-30">
                     <img src="logo.png" alt="Logo Sesc" class="h-10 object-contain drop-shadow-md">
-                    <img src="assets/sprite/cartoon/Home.png" alt="MesaRun - Léo e Lucas" class="block mx-auto h-52 md:h-60 w-auto object-contain drop-shadow-2xl">
+                    <div id="home-art-wrap">
+                        <img id="home-art" src="assets/sprite/cartoon/Home.png" alt="MesaRun - Léo e Lucas" class="block mx-auto h-52 md:h-60 w-auto object-contain drop-shadow-2xl">
+                    </div>
                 </div>
 
                 <!-- Menu Principal (Setor Central/Inferior) -->
                 <div id="main-menu" class="flex flex-col items-center w-full max-w-[310px] px-4 gap-3 z-30 justify-center">
 
                     <!-- Botão Play -->
-                    <button id="btn-play" class="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-[Bangers] text-4xl tracking-wide py-3 rounded-2xl border-4 border-slate-950 shadow-[4px_4px_0px_#020617] active:translate-y-[4px] active:shadow-none transition-all duration-100">
-                        PLAY
+                    <button id="btn-play" class="menu-btn menu-btn-play menu-btn-shine hud-pill-emerald w-full">
+                        <span class="hud-bubble">
+                            <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" /></svg>
+                        </span>
+                        <span class="menu-btn-text hud-text">PLAY</span>
                     </button>
 
                     <!-- Botões Auxiliares -->
                     <div class="grid grid-cols-2 gap-3 w-full">
-                        <button id="btn-ranking" class="bg-amber-500 hover:bg-amber-400 text-white font-bold text-xs py-2.5 rounded-xl border-4 border-slate-950 shadow-[3px_3px_0px_#020617] active:translate-y-[3px] active:shadow-none transition-all duration-100">
-                            🏆 RANKING
+                        <button id="btn-ranking" class="menu-btn menu-btn-sm hud-pill-amber">
+                            <span class="hud-bubble">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8" /><path d="M12 17v4" /><path d="M7 4h10" /><path d="M17 4v8a5 5 0 0 1 -10 0v-8" /><path d="M5 9m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M19 9m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /></svg>
+                            </span>
+                            <span class="menu-btn-text hud-text">RANKING</span>
                         </button>
-                        <button id="btn-settings" class="bg-slate-600 hover:bg-slate-500 text-white font-bold text-xs py-2.5 rounded-xl border-4 border-slate-950 shadow-[3px_3px_0px_#020617] active:translate-y-[3px] active:shadow-none transition-all duration-100">
-                            ⚙️ AJUSTES
+                        <button id="btn-settings" class="menu-btn menu-btn-sm menu-btn-slate">
+                            <span class="hud-bubble">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4v5M6 13v7M12 4v9M12 17v3M18 4v3M18 11v9" /><circle cx="6" cy="11" r="2" /><circle cx="12" cy="15" r="2" /><circle cx="18" cy="9" r="2" /></svg>
+                            </span>
+                            <span class="menu-btn-text hud-text">AJUSTES</span>
                         </button>
                     </div>
+
+                    <!-- Link para o site do Mesa Brasil (abre em outra aba) -->
+                    <a id="btn-mesabrasil" href="https://sescmesabrasil.sescsp.org.br/" target="_blank" rel="noopener noreferrer" class="menu-link-glass">
+                        <svg viewBox="0 0 24 24" fill="#fb7185" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 12.572l-7.5 7.428l-7.5 -7.428a5 5 0 1 1 7.5 -6.566a5 5 0 1 1 7.5 6.572" /></svg>
+                        <span>Conheça o Sesc Mesa Brasil</span>
+                        <svg class="menu-link-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7" /><path d="M8 7h9v9" /></svg>
+                    </a>
                 </div>
 
                 <!-- Modal do Ranking (Posicionado de forma absoluta para não quebrar o layout flex) -->
-                <div id="ranking-modal" class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex-col items-center w-[290px] bg-slate-900/95 border-4 border-slate-950 rounded-3xl p-5 shadow-2xl z-40 pb-[18vh]">
-                    <!-- Botão de Fechar no topo -->
-                    <button id="btn-close-ranking-x" class="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors">
-                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
+                <div id="ranking-modal" class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex-col items-center w-[300px] max-w-[94%] z-40">
+                    <div class="edu-popup-pop relative w-full">
+                        <div class="gameover-card ranking-card">
 
-                    <h2 class="font-[Bangers] text-4xl text-white tracking-wide mb-3">🏆 TOP 10</h2>
+                            <!-- Botão de Fechar no topo -->
+                            <button id="btn-close-ranking-x" class="rank-close" aria-label="Fechar">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
 
-                    <ul id="ranking-list" class="w-full text-white font-semibold space-y-1.5 mb-4 max-h-36 overflow-y-auto pr-1">
-                        <!-- Preenchido dinamicamente -->
-                    </ul>
+                            <h2 class="gameover-title ranking-title"><span class="ranking-trophy">🏆</span> RANKING</h2>
 
-                    <button id="btn-close-ranking" class="w-full bg-red-500 hover:bg-red-400 text-white font-bold py-2 rounded-xl border-2 border-slate-950 shadow-[3px_3px_0px_#020617] active:translate-y-[3px] active:shadow-none transition-all duration-100 text-sm">
-                        VOLTAR
-                    </button>
+                            <!-- Abas -->
+                            <div id="rank-tabs" class="go-toggle rank-tabs" role="group" aria-label="Tipo de ranking">
+                                <button id="btn-rank-top" type="button" class="go-pill on" aria-pressed="true">TOP 10</button>
+                                <button id="btn-rank-all" type="button" class="go-pill" aria-pressed="false">GERAL</button>
+                            </div>
 
-                    <!-- Lucas Maior e Centralizado -->
-                    <img src="assets/sprite/cartoon/ranking.png" alt="Lucas troféu" class="absolute bottom-0 left-1/2 -translate-x-1/2 h-[18vh] object-contain pointer-events-none select-none align-bottom z-10">
+                            <p id="ranking-status" class="go-feedback hidden"></p>
+
+                            <ul id="ranking-list" class="rank-list">
+                                <!-- Preenchido dinamicamente -->
+                            </ul>
+
+                            <button id="btn-close-ranking" class="w-full bg-red-500 hover:bg-red-400 text-white font-[Bangers] text-xl tracking-wide py-1.5 rounded-xl border-4 border-slate-950 shadow-[3px_3px_0px_#020617] active:translate-y-[3px] active:shadow-none transition-all duration-100">
+                                VOLTAR
+                            </button>
+
+                            <!-- Lucas colada na base do card -->
+                            <img src="assets/sprite/cartoon/ranking.png" alt="Lucas troféu" class="gameover-char ranking-char">
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Rodapé -->
-                <div id="footer" class="pointer-events-none z-10">
-                    <p class="text-[10px] font-semibold text-slate-500">
+                <div id="footer" class="pointer-events-none z-30">
+                    <p class="text-[14px] font-semibold text-slate-500">
                         Powered with <span class="text-red-500 text-xs">&#10084;</span> by <strong class="text-slate-300">Mesaque</strong>
                     </p>
                 </div>
@@ -272,8 +306,8 @@
                             <input id="player-name-input" type="text" maxlength="15" placeholder="Seu nome ou apelido" autocomplete="off" class="go-input">
 
                             <div class="flex items-center justify-between gap-2">
-                                <span class="go-label">Funcionário Sesc?</span>
-                                <div class="go-toggle" role="group" aria-label="Funcionário Sesc?">
+                                <span class="go-label">Registrar Instituição?</span>
+                                <div class="go-toggle" role="group" aria-label="Registrar Instituição?">
                                     <button id="btn-staff-no" type="button" class="go-pill on" aria-pressed="true">NÃO</button>
                                     <button id="btn-staff-yes" type="button" class="go-pill" aria-pressed="false">SIM</button>
                                 </div>
@@ -285,7 +319,7 @@
                                 </div>
                             </div>
 
-                            <p class="go-privacy">Seu nome e sua unidade serão exibidos no ranking público.</p>
+                            <p class="go-privacy">Seu nome e instituição serão exibidos no ranking público.</p>
 
                             <button id="btn-save-record" class="w-full bg-amber-500 hover:bg-amber-400 text-white font-[Bangers] text-xl tracking-wide py-1.5 rounded-xl border-4 border-slate-950 shadow-[3px_3px_0px_#020617] active:translate-y-[3px] active:shadow-none transition-all duration-100 disabled:opacity-50 disabled:pointer-events-none">
                                 SALVAR RECORDE
@@ -396,9 +430,7 @@
     <script type="module" src="js/main.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch((err) => console.error('Erro ao registrar o Service Worker:', err));
-            });
+            navigator.serviceWorker.register('./sw.js').catch((err) => console.error('Erro ao registrar o Service Worker:', err));
         }
     </script>
 </body>
