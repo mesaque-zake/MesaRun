@@ -126,8 +126,14 @@ function init() {
     try { debugWasOn = localStorage.getItem(DEBUG_STORAGE_KEY) === '1'; } catch (e) {}
     setDebugPanelVisible(debugWasOn);
 
+    // Reenvia recordes que ficaram sem internet (espera o jogo terminar de carregar)
+    setTimeout(flushPendingScores, 5000);
+
     // Começa o loop da engine injetando o tempo via API do navegador
     requestAnimationFrame(gameLoop);
+
+    // Abertura: azul com a arte no centro, depois a cortina circular e os botões
+    startIntro();
 }
 
 // Painel de debug (FPS, calls, triângulos): oculto por padrão, ligado pelos Ajustes
@@ -147,10 +153,73 @@ function pulseHud(el, kind) {
     el.classList.add(kind === 'gain' ? 'hud-flash-gain' : 'hud-flash-loss');
 }
 
+// =========================================
+// ABERTURA: azul, cortina circular e botões animados
+// =========================================
+const homeArt = document.getElementById('home-art');
+const homeArtWrap = document.getElementById('home-art-wrap');
+const introCover = document.getElementById('intro-cover');
+
+const INTRO_BLUE_MS = 2600;    // tempo com a tela azul
+const INTRO_REVEAL_MS = 1900;  // cortina + arte subindo + botões entrando (o último botão termina em ~1,7 s)
+
+let introPhase = 'idle';       // 'idle', 'blue', 'reveal' ou 'done'
+let introTimer = null;
+
+function startIntro() {
+    // Quem pediu "reduzir movimento" no sistema vê o menu direto
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        finishIntro();
+        return;
+    }
+
+    // Sem suporte a @property, a cortina vira um fade simples
+    if (!(window.CSS && CSS.registerProperty)) menuBackdrop.classList.add('intro-simple');
+
+    // Mede quanto a arte precisa descer do lugar do menu até o centro da área do jogo
+    const artRect = homeArt.getBoundingClientRect();
+    const wrapRect = gameWrapper.getBoundingClientRect();
+    const dy = (wrapRect.top + wrapRect.height / 2) - (artRect.top + artRect.height / 2);
+    homeArtWrap.style.setProperty('--intro-dy', `${dy}px`);
+
+    introPhase = 'blue';
+    homeArt.classList.add('countdown-punch'); // o mesmo "soco" da contagem
+    menuBackdrop.addEventListener('pointerdown', onIntroTap);
+    introTimer = setTimeout(openIntro, INTRO_BLUE_MS);
+}
+
+// Abre a cortina: a arte sobe e os botões entram
+function openIntro() {
+    if (introPhase !== 'blue') return;
+    introPhase = 'reveal';
+    if (introTimer) clearTimeout(introTimer);
+    menuBackdrop.classList.add('intro-open');
+    introTimer = setTimeout(finishIntro, INTRO_REVEAL_MS);
+}
+
+// Limpa todas as classes da abertura: o menu volta a ser estático, sem animação ao reabrir
+function finishIntro() {
+    if (introTimer) clearTimeout(introTimer);
+    introTimer = null;
+    introPhase = 'done';
+    menuBackdrop.removeEventListener('pointerdown', onIntroTap);
+    menuBackdrop.classList.remove('intro-active', 'intro-open', 'intro-simple');
+    introCover.classList.add('hidden');
+    homeArt.classList.remove('countdown-punch');
+    homeArtWrap.style.removeProperty('--intro-dy');
+    btnPlay.classList.add('play-breathe');
+}
+
+// Um toque durante o azul abre a cortina; durante a revelação, pula para o final
+function onIntroTap() {
+    if (introPhase === 'blue') openIntro();
+    else if (introPhase === 'reveal') finishIntro();
+}
+
 function setupMenu() { 
     // Abrir o Ranking
     btnRanking.addEventListener('click', () => { 
-        updateLeaderboardUI(); 
+        loadRanking(); // abre no TOP 10, mostra o último ranking guardado e busca o novo na planilha
         mainMenu.classList.add('hidden');
         rankingModal.classList.remove('hidden'); 
         rankingModal.classList.add('flex'); 
@@ -671,13 +740,13 @@ const RESUME_GRACE_MS = 1000;         // 1 s sem colisão depois de retomar o jo
 
 // Textos (rascunho): ajuste aqui o que não estiver fiel às regras do Mesa Brasil
 const CATEGORY_POPUPS = {
-    manipulado: { title: 'Já foi mexido!', text: 'Frutas e legumes cortados perdem a proteção da casca e estragam mais rápido. Só coletamos alimentos inteiros.' },
-    preparado:  { title: 'Comida pronta não!', text: 'Refeições já preparadas não entram na coleta. Coletamos alimentos crus ou fechados, que duram mais e chegam seguros.' },
-    lanche:     { title: 'Lanche pronto não!', text: 'Lanches prontos, como hambúrguer, cachorro-quente e taco, não fazem parte das doações que coletamos.' },
-    aberto:     { title: 'Embalagem aberta!', text: 'Se a embalagem já foi aberta, não dá para garantir que o alimento está seguro. Só coletamos produtos lacrados.' },
+    manipulado: { title: 'Já foi manipulado!', text: 'Frutas e legumes cortados perdem a proteção da casca e estragam mais rápido.' },
+    preparado:  { title: 'Comida pronta não!', text: 'Refeições já preparadas não entram na coleta. Ao menos que estejam congeladas e embaladas corretamente' },
+    lanche:     { title: 'Lanche pronto não!', text: 'Fastfoods não fazem parte das doações que coletamos.' },
+    aberto:     { title: 'Embalagem aberta!', text: 'Se a embalagem já foi aberta, não dá para garantir que o alimento está seguro.' },
     doce:       { title: 'Doce com recheio!', text: 'Bolos, donuts e doces recheados estragam rápido e não fazem parte da coleta.' },
-    super:      { title: 'Isso nem pensar!', text: 'Bebidas alcoólicas e cogumelos não são coletados. É a maior penalidade do jogo, por isso o aviso é mais forte.' },
-    easterEgg:  { title: 'Isso é história!', text: 'HAHAHA! O "Mesa São Paulo" entregava isso em 1994, hoje não mais!', special: true }
+    super:      { title: 'Isso nem pensar!', text: 'Bebidas alcoólicas e cogumelos não são coletados.' },
+    easterEgg:  { title: 'Já foi a época!', text: 'Hahaha! O "Mesa São Paulo" entregava isso em 1994, hoje não mais!', special: true }
 };
 
 let isPaused = false;               // true enquanto o jogo está congelado pelo pop-up
@@ -850,30 +919,258 @@ function triggerToast(penalty, msg, fileOrSpriteName, isManualSprite = false, is
     }, 3000);
 }
 
-function updateLeaderboardUI() { 
-    const rankingList = document.getElementById('ranking-list'); 
+// =========================================
+// TELA DO RANKING (abas TOP 10 e GERAL)
+// =========================================
+const btnRankTop = document.getElementById('btn-rank-top');
+const btnRankAll = document.getElementById('btn-rank-all');
+const TOP_VIEW_SIZE = 10;
+let rankingTab = 'top';
+
+function normalizeRankText(s) {
+    return String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+// Limpa o texto do mesmo jeito que o script faz ao gravar, para a comparação não falhar por causa de símbolos
+function cleanLikeServer(s, max) {
+    return String(s || '')
+        .replace(/[^A-Za-zÀ-ÿ0-9 ._\-]/g, '')
+        .replace(/^[^A-Za-zÀ-ÿ0-9]+/, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, max)
+        .toLowerCase();
+}
+
+function isMyRankingEntry(entry) {
+    let prefs = null;
+    try { prefs = JSON.parse(localStorage.getItem(PLAYER_PREFS_KEY)); } catch (e) {}
+    if (!prefs || !prefs.name) return false;
+    const myName = cleanLikeServer(prefs.name, 15);
+    const myUnit = prefs.isStaff ? cleanLikeServer(prefs.unit, 30) : '';
+    return cleanLikeServer(entry.name, 30) === myName
+        && cleanLikeServer(entry.unit, 40) === myUnit;
+}
+
+// Lista já ordenada da maior para a menor pontuação: fica só a melhor de cada pessoa (mesmo nome e unidade)
+function bestPerPerson(sortedEntries) {
+    const seen = new Set();
+    const result = [];
+    for (const entry of sortedEntries) {
+        const key = normalizeRankText(entry.name) + '|' + normalizeRankText(entry.unit);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        result.push(entry);
+        if (result.length >= TOP_VIEW_SIZE) break;
+    }
+    return result;
+}
+
+// Desenha a lista. Nomes e unidades entram como texto puro (textContent), nunca como HTML
+function renderRankingList(entries) {
+    const rankingList = document.getElementById('ranking-list');
     if (!rankingList) return;
 
-    rankingList.innerHTML = '';
+    rankingList.replaceChildren();
+    rankingList.scrollTop = 0;
 
-    if (leaderboard.length === 0) {
-        rankingList.innerHTML = `<li class="text-center text-slate-400 italic py-6 text-xs">Nenhum recorde registrado ainda. Seja o primeiro!</li>`;
+    if (entries.length === 0) {
+        const empty = document.createElement('li');
+        empty.className = 'rank-empty';
+        empty.textContent = 'Ninguém no ranking ainda. Seja o primeiro!';
+        rankingList.appendChild(empty);
         return;
     }
 
-    leaderboard.forEach((entry, index) => {
+    const medals = ['🥇', '🥈', '🥉'];
+    const medalClasses = ['rank-gold', 'rank-silver', 'rank-bronze'];
+
+    entries.forEach((entry, index) => {
         const li = document.createElement('li');
-        li.className = "flex justify-between border-b border-white/5 pb-1 text-xs md:text-sm";
+        li.className = 'rank-row';
+        if (index < 3) li.classList.add(medalClasses[index]);
+        if (isMyRankingEntry(entry)) li.classList.add('rank-me');
+        if (index < 10) {
+            li.classList.add('rank-row-anim');
+            li.style.setProperty('--i', index);
+        }
 
-        let positionIndicator = `${index + 1}. `;
-        if (index === 0) positionIndicator = "🥇 ";
-        else if (index === 1) positionIndicator = "🥈 ";
-        else if (index === 2) positionIndicator = "🥉 ";
+        const pos = document.createElement('span');
+        pos.className = 'rank-pos';
+        pos.textContent = index < 3 ? medals[index] : String(index + 1);
 
-        li.innerHTML = `<span>${positionIndicator}${entry.name}</span><span class="text-emerald-400 font-bold">${entry.score} kg</span>`;
+        const who = document.createElement('div');
+        who.className = 'rank-who';
+        const nameEl = document.createElement('span');
+        nameEl.className = 'rank-name';
+        nameEl.textContent = entry.name;
+        who.appendChild(nameEl);
+        if (entry.unit) {
+            const unitEl = document.createElement('span');
+            unitEl.className = 'rank-unit';
+            unitEl.textContent = entry.unit;
+            who.appendChild(unitEl);
+        }
+
+        const scoreEl = document.createElement('span');
+        scoreEl.className = 'rank-score hud-text';
+        scoreEl.textContent = `${entry.score} kg`;
+
+        li.append(pos, who, scoreEl);
         rankingList.appendChild(li);
     });
 }
+
+// ---------- Ranking internacional: leitura da planilha ----------
+const rankTabs = document.getElementById('rank-tabs');
+const rankingStatus = document.getElementById('ranking-status');
+
+const RANKING_CACHE_KEY = 'mesarun_ranking_cache'; // último ranking recebido da planilha
+const RANKING_FETCH_TIMEOUT_MS = 8000;
+
+let rankingMode = 'local';   // 'loading' (carregando), 'remote' (dados da planilha) ou 'local' (deste aparelho)
+let remoteRanking = null;    // { top10: [...], general: [...] }
+let rankingRequestId = 0;    // só a resposta do pedido mais novo vale
+
+// Garante o formato certo e limita o tamanho dos textos (eles ainda entram só como textContent)
+function cleanRankingEntries(list) {
+    return list
+        .map((e) => ({
+            name: String((e && e.name) || '').slice(0, 30),
+            unit: String((e && e.unit) || '').slice(0, 40),
+            score: Number(e && e.score)
+        }))
+        .filter((e) => e.name && isFinite(e.score));
+}
+
+function saveRankingCache(data) {
+    try { localStorage.setItem(RANKING_CACHE_KEY, JSON.stringify(data)); } catch (e) {}
+}
+
+function readRankingCache() {
+    try {
+        const d = JSON.parse(localStorage.getItem(RANKING_CACHE_KEY));
+        if (d && Array.isArray(d.top10) && Array.isArray(d.general)) {
+            return { top10: cleanRankingEntries(d.top10), general: cleanRankingEntries(d.general) };
+        }
+    } catch (e) {}
+    return null;
+}
+
+// Devolve { top10, general } ou null (sem conexão, demora, resposta inválida)
+async function fetchRemoteRanking() {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), RANKING_FETCH_TIMEOUT_MS);
+    try {
+        const res = await fetch(`${RANKING_URL}?action=list&_=${Date.now()}`, { signal: controller.signal });
+        const data = await res.json();
+        if (!data || data.ok !== true || !Array.isArray(data.top10) || !Array.isArray(data.general)) return null;
+        return { top10: cleanRankingEntries(data.top10), general: cleanRankingEntries(data.general) };
+    } catch (err) {
+        return null;
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+function renderRankingSkeleton() {
+    const rankingList = document.getElementById('ranking-list');
+    if (!rankingList) return;
+
+    rankingList.replaceChildren();
+    rankingList.scrollTop = 0;
+    for (let i = 0; i < 5; i++) {
+        const li = document.createElement('li');
+        li.className = 'rank-row rank-skel';
+        li.style.setProperty('--i', i);
+        rankingList.appendChild(li);
+    }
+}
+
+function setRankingStatus(text, kind) {
+    rankingStatus.textContent = text || '';
+    rankingStatus.classList.toggle('hidden', !text);
+    rankingStatus.classList.remove('go-warn');
+    if (kind === 'warn') rankingStatus.classList.add('go-warn');
+}
+
+function syncRankingTabButtons() {
+    btnRankTop.classList.toggle('on', rankingTab === 'top');
+    btnRankAll.classList.toggle('on', rankingTab === 'all');
+    btnRankTop.setAttribute('aria-pressed', rankingTab === 'top' ? 'true' : 'false');
+    btnRankAll.setAttribute('aria-pressed', rankingTab === 'all' ? 'true' : 'false');
+}
+
+// Com o ranking só deste aparelho as abas somem e a lista é sempre o TOP 10
+function setRankingMode(mode) {
+    rankingMode = mode;
+    rankTabs.classList.toggle('is-off', mode === 'local');
+    if (mode === 'local') {
+        rankingTab = 'top';
+        syncRankingTabButtons();
+    }
+}
+
+function updateLeaderboardUI() {
+    if (rankingMode === 'loading') {
+        renderRankingSkeleton();
+        return;
+    }
+    if (rankingMode === 'remote' && remoteRanking) {
+        renderRankingList(rankingTab === 'top' ? remoteRanking.top10 : remoteRanking.general);
+        return;
+    }
+    // Reserva: ranking deste aparelho
+    const sorted = [...leaderboard].sort((a, b) => b.score - a.score);
+    renderRankingList(rankingTab === 'top' ? bestPerPerson(sorted) : sorted);
+}
+
+function setRankingTab(tab) {
+    rankingTab = tab;
+    syncRankingTabButtons();
+    updateLeaderboardUI();
+}
+
+// Chamada ao abrir o ranking: mostra o último guardado (ou o carregamento) e busca o novo na planilha
+function loadRanking() {
+    const requestId = ++rankingRequestId;
+    rankingTab = 'top';
+    syncRankingTabButtons();
+
+    const cached = readRankingCache();
+    if (cached) {
+        remoteRanking = cached;
+        setRankingMode('remote');
+        setRankingStatus('Atualizando...');
+    } else {
+        remoteRanking = null;
+        setRankingMode('loading');
+        setRankingStatus('Carregando...');
+    }
+    updateLeaderboardUI();
+
+    fetchRemoteRanking().then((data) => {
+        if (requestId !== rankingRequestId) return; // o ranking foi reaberto: vale a resposta mais nova
+
+        if (data) {
+            const changed = JSON.stringify(data) !== JSON.stringify(remoteRanking);
+            remoteRanking = data;
+            saveRankingCache(data);
+            setRankingMode('remote');
+            setRankingStatus('');
+            if (changed) updateLeaderboardUI(); // igual ao que já está na tela: não redesenha
+        } else if (cached) {
+            setRankingStatus('Sem conexão: mostrando o último ranking guardado.', 'warn');
+        } else {
+            setRankingMode('local');
+            setRankingStatus('Sem conexão: mostrando o ranking deste aparelho', 'warn');
+            updateLeaderboardUI();
+        }
+    });
+}
+
+btnRankTop.addEventListener('click', () => setRankingTab('top'));
+btnRankAll.addEventListener('click', () => setRankingTab('all'));
 
 // =========================================
 // TELA DE FIM DE PARTIDA
@@ -941,9 +1238,10 @@ function animateGameOverScore(finalScore) {
 function setRecordFeedback(text, kind) {
     recordFeedback.innerText = text || '';
     recordFeedback.classList.toggle('hidden', !text);
-    recordFeedback.classList.remove('go-error', 'go-ok');
+    recordFeedback.classList.remove('go-error', 'go-ok', 'go-warn');
     if (kind === 'error') recordFeedback.classList.add('go-error');
     if (kind === 'ok') recordFeedback.classList.add('go-ok');
+    if (kind === 'warn') recordFeedback.classList.add('go-warn');
 }
 
 // Chave "Funcionário Sesc? NÃO / SIM": SIM abre o campo da unidade
@@ -995,10 +1293,12 @@ function setupGameOverScreen() {
 
     animateGameOverScore(score);
     setRecordFeedback('');
+    gameOverSession++;          // uma "sessão" por tela de fim de partida
+    isSubmittingScore = false;
 
     if (score > 0) {
         loadPlayerPrefs();
-        btnSaveRecord.disabled = false;
+        resetSaveButton();
         recordForm.classList.remove('hidden');
         recordForm.classList.add('flex');
     } else {
@@ -1007,7 +1307,122 @@ function setupGameOverScreen() {
     }
 }
 
-function saveRecord() { 
+// =========================================
+// ENVIO AO RANKING INTERNACIONAL (Google Apps Script)
+// =========================================
+const RANKING_URL = 'https://script.google.com/macros/s/AKfycbzc8VSpdIqK4-14V_y0dJmycfvMCz8-UIXOAmLxw863vCo7VvnQISVz56H3D0_9Ryxjaw/exec';
+const CLIENT_ID_KEY = 'mesarun_client_id';       // identificador anônimo deste aparelho
+const PENDING_SCORES_KEY = 'mesarun_pending';    // recordes que ficaram sem enviar
+const MAX_PENDING = 3;
+const SUBMIT_TIMEOUT_MS = 12000;
+const PENDING_RETRY_GAP_MS = 21000;              // o script aceita 1 envio por aparelho a cada 20 s
+
+// Erros que voltam ao formulário para a pessoa corrigir ou tentar de novo
+const RANKING_MESSAGES = {
+    blocked_name: 'Esse nome não é permitido. Escolha outro.',
+    bad_name: 'Nome inválido. Use só letras e números.',
+    bad_unit: 'Instituição inválida. Confira o nome da instituição.',
+    rate_limited: 'Calma! Aguarde uns 10 segundos e tente de novo.',
+    busy: 'O ranking está ocupado. Tente de novo em instantes.'
+};
+// Qualquer outro erro (pontuação recusada etc.) fecha o formulário
+const RANKING_FINAL_MESSAGE = 'Essa partida não pôde ser registrada no ranking.';
+
+let isSubmittingScore = false;
+let gameOverSession = 0;
+let flushingPending = false;
+
+function getClientId() {
+    let id = '';
+    try { id = localStorage.getItem(CLIENT_ID_KEY) || ''; } catch (e) {}
+    if (!id) {
+        id = (window.crypto && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : 'c-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+        try { localStorage.setItem(CLIENT_ID_KEY, id); } catch (e) {}
+    }
+    return id;
+}
+
+// Devolve { ok: true } ou { ok: false, error: '...' }. error 'network' = sem conexão ou demora.
+async function sendScoreToRanking(payload) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), SUBMIT_TIMEOUT_MS);
+    try {
+        // text/plain evita o "preflight" do navegador, que o Apps Script não responde
+        const res = await fetch(RANKING_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(payload),
+            signal: controller.signal
+        });
+        const data = await res.json();
+        if (data && data.ok === true) return { ok: true };
+        return { ok: false, error: (data && data.error) || 'bad_request' };
+    } catch (err) {
+        return { ok: false, error: 'network' };
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+function readPending() {
+    try {
+        const list = JSON.parse(localStorage.getItem(PENDING_SCORES_KEY));
+        return Array.isArray(list) ? list : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function writePending(list) {
+    try { localStorage.setItem(PENDING_SCORES_KEY, JSON.stringify(list.slice(-MAX_PENDING))); } catch (e) {}
+}
+
+// Reenvia, um de cada vez, os recordes que ficaram guardados
+async function flushPendingScores() {
+    if (flushingPending) return;
+    flushingPending = true;
+    try {
+        while (readPending().length > 0) {
+            const result = await sendScoreToRanking(readPending()[0]);
+            // Sem conexão, limite de frequência ou servidor ocupado: para e tenta numa próxima vez
+            if (!result.ok && (result.error === 'network' || result.error === 'rate_limited' || result.error === 'busy')) break;
+            // Enviado, ou recusado de vez: sai da fila
+            writePending(readPending().slice(1));
+            if (result.ok && readPending().length > 0) {
+                await new Promise((resolve) => setTimeout(resolve, PENDING_RETRY_GAP_MS));
+            }
+        }
+    } finally {
+        flushingPending = false;
+    }
+}
+
+window.addEventListener('online', flushPendingScores);
+
+// Ranking local (reserva): só recebe o recorde quando o envio deu certo ou ficou na fila
+function saveLocalRecord(name, unit, finalScore) {
+    leaderboard.push({ name: name, unit: unit, score: finalScore });
+    leaderboard.sort((a, b) => b.score - a.score);
+    leaderboard = leaderboard.slice(0, 10);
+    try { localStorage.setItem('mesarun_ranking', JSON.stringify(leaderboard)); } catch (e) {}
+    updateLeaderboardUI();
+}
+
+function resetSaveButton() {
+    btnSaveRecord.disabled = false;
+    btnSaveRecord.innerText = 'ENVIAR AO RANKING';
+}
+
+function hideRecordForm() {
+    recordForm.classList.remove('flex');
+    recordForm.classList.add('hidden');
+}
+
+async function saveRecord() { 
+    if (isSubmittingScore) return;
+
     const name = playerNameInput.value.trim().toUpperCase();
     const unit = playerUnitInput.value.trim();
 
@@ -1022,21 +1437,57 @@ function saveRecord() {
         return;
     }
 
-    leaderboard.push({ name: name, unit: playerIsStaff ? unit : '', score: score });
-    leaderboard.sort((a, b) => b.score - a.score);
-    leaderboard = leaderboard.slice(0, 10);
+    const session = gameOverSession;
+    const payload = {
+        action: 'submit',
+        clientId: getClientId(),
+        name: name,
+        isStaff: playerIsStaff,
+        unit: playerIsStaff ? unit : '',
+        score: score,
+        durationSec: gameDurationSec
+    };
 
-    localStorage.setItem('mesarun_ranking', JSON.stringify(leaderboard));
     try {
         localStorage.setItem(PLAYER_PREFS_KEY, JSON.stringify({ name: name, isStaff: playerIsStaff, unit: unit }));
     } catch (e) {}
 
-    recordForm.classList.remove('flex');
-    recordForm.classList.add('hidden');
+    isSubmittingScore = true;
     btnSaveRecord.disabled = true;
+    btnSaveRecord.innerText = 'ENVIANDO...';
+    setRecordFeedback('Enviando ao ranking...');
 
-    updateLeaderboardUI();
-    setRecordFeedback('Recorde salvo neste aparelho!', 'ok');
+    const result = await sendScoreToRanking(payload);
+    if (session === gameOverSession) isSubmittingScore = false;
+
+    // O que importa para os dados vem antes da tela, mesmo que a pessoa já tenha saído dela
+    if (!result.ok && result.error === 'network') {
+        const list = readPending();
+        list.push(payload);
+        writePending(list);
+    }
+    if (result.ok && readPending().length > 0) {
+        setTimeout(flushPendingScores, PENDING_RETRY_GAP_MS);
+    }
+    if (result.ok || result.error === 'network') {
+        saveLocalRecord(payload.name, payload.unit, payload.score);
+    }
+
+    if (session !== gameOverSession) return; // a tela já é de outra partida
+
+    if (result.ok) {
+        hideRecordForm();
+        setRecordFeedback('Enviado ao ranking!', 'ok');
+    } else if (result.error === 'network') {
+        hideRecordForm();
+        setRecordFeedback('Sem conexão. Guardamos seu recorde e tentamos de novo depois.', 'warn');
+    } else if (RANKING_MESSAGES[result.error]) {
+        resetSaveButton();
+        setRecordFeedback(RANKING_MESSAGES[result.error], 'error');
+    } else {
+        hideRecordForm();
+        setRecordFeedback(RANKING_FINAL_MESSAGE, 'error');
+    }
 }
 
 function startBiomeTimer() { 
@@ -1051,7 +1502,7 @@ function startBiomeTimer() {
         if (isPlaying && !isGameOver) {
             runWhenNotPaused(triggerBiomeTransition);
         }
-    }, 40000); 
+    }, 50000); 
 }
 
 function triggerBiomeTransition() { 
