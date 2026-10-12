@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { currentSpeed, addTireMark } from './world.js';
-import { scene } from './engine.js';
+import { scene, getSpawnZ, getDespawnZ } from './engine.js';
 
 let truckModel = null;
 
@@ -73,6 +73,7 @@ let garbageCount = 0;
 let garbageDropTimer = 0;
 let garbageTargetLaneX = 0;
 let garbageTotalToDrop = 5;
+let garbageApproachScale = 1; // acelera a chegada quando o boss nasce mais longe, para durar o mesmo tempo
 let garbageLastDropLaneX = null;
 let garbageEventsThisGame = 0;
 let onEventCompleteCallback = null;
@@ -262,6 +263,11 @@ export function movePlayerRight() {
     } 
 }
 
+// Posição x (no mundo) de uma faixa: 0, 1 ou 2. O main.js usa para posicionar o farolete de aviso.
+export function getLaneX(index) {
+    return currentLanes[index];
+}
+
 let markTimer = 0;
 
 // EXECUTA A FÍSICA DO JOGADOR E DOS OBSTÁCULOS
@@ -291,12 +297,13 @@ export function updateEntities(isBraking, deltaTime = 0.016) {
     }
 
     const OBSTACLE_BASE_SPEED = 0.16; 
+    const despawnZ = getDespawnZ(); // além da borda de baixo da tela (-45 no computador)
     for (let i = activeObstacles.length - 1; i >= 0; i--) {
         const obs = activeObstacles[i];
         const relativeSpeed = (currentSpeed - OBSTACLE_BASE_SPEED) * frameRatio;
         obs.position.z -= relativeSpeed;
 
-        if (obs.position.z < -45) {
+        if (obs.position.z < despawnZ) {
             scene.remove(obs); 
             activeObstacles.splice(i, 1); 
         }
@@ -312,7 +319,7 @@ export function updateEntities(isBraking, deltaTime = 0.016) {
         // Lote 3: Giro de 360º contínuo (sem aquele "vai e volta" do seno)
         item.mesh.rotation.y = item.spawnTime * 1.5;
 
-        if (item.mesh.position.z < -45) {
+        if (item.mesh.position.z < despawnZ) {
             scene.remove(item.mesh);
             activeItems.splice(i, 1);
         }
@@ -321,25 +328,25 @@ export function updateEntities(isBraking, deltaTime = 0.016) {
     // --- INTELIGÊNCIA ARTIFICIAL DO CAMINHÃO DE LIXO (BOSS) ---
     if (activeGarbageTruck) {
         if (garbageTruckState === 'approaching') {
-            const approachSpeed = 0.22 * frameRatio;
+            const approachSpeed = 0.22 * garbageApproachScale * frameRatio;
             activeGarbageTruck.position.z -= approachSpeed;
+            steerGarbageTruck(frameRatio, false);
             
             if (activeGarbageTruck.position.z <= 18) {
                 activeGarbageTruck.position.z = 18;
                 garbageTruckState = 'dropping';
                 garbageCount = 0;
                 garbageDropTimer = 0;
-                garbageTargetLaneX = activeGarbageTruck.position.x;
                 garbageLastDropLaneX = null;
             }
         } 
         else if (garbageTruckState === 'dropping') {
-            activeGarbageTruck.position.x += (garbageTargetLaneX - activeGarbageTruck.position.x) * 0.08 * frameRatio;
+            steerGarbageTruck(frameRatio, true);
 
             garbageDropTimer += deltaTime;
             // Só solta o lixo quando o caminhão já chegou na faixa de destino
             const reachedLane = Math.abs(garbageTargetLaneX - activeGarbageTruck.position.x) < 0.5;
-            if (garbageDropTimer > 1.2 && reachedLane && garbageCount < garbageTotalToDrop) {
+            if (garbageDropTimer > 1.2 && reachedLane && garbageTargetLaneX !== garbageLastDropLaneX && garbageCount < garbageTotalToDrop) {
                 garbageDropTimer = 0;
                 garbageCount++;
                 garbageLastDropLaneX = garbageTargetLaneX;
@@ -366,7 +373,7 @@ export function updateEntities(isBraking, deltaTime = 0.016) {
                 }
             }
 
-            if (activeGarbageTruck.position.z < -45) {
+            if (activeGarbageTruck.position.z < despawnZ) {
                 scene.remove(activeGarbageTruck);
                 activeGarbageTruck = null;
                 garbageTruckState = 'idle';
@@ -384,7 +391,7 @@ export function updateEntities(isBraking, deltaTime = 0.016) {
             onPoliceCompleteCallback = null; // Executa uma única vez
         }
 
-        if (activePolice.position.z > 120) {
+        if (activePolice.position.z > getSpawnZ()) {
             scene.remove(activePolice);
             activePolice = null;
             policeState = 'idle';
@@ -401,12 +408,69 @@ export function updateEntities(isBraking, deltaTime = 0.016) {
             onAmbulanceCompleteCallback = null; // Executa uma única vez
         }
 
-        if (activeAmbulance.position.z > 120) {
+        if (activeAmbulance.position.z > getSpawnZ()) {
             scene.remove(activeAmbulance);
             activeAmbulance = null;
             ambulanceState = 'idle';
         }
     }
+}
+
+// =========================================
+// CAMINHÃO DE LIXO (BOSS) RESPEITANDO O TRÂNSITO
+// =========================================
+const BOSS_LOOKAHEAD = 40;     // alcance (em z) em que ele enxerga carros chegando atrás dele
+const BOSS_BODY_MARGIN = 6;    // carro emparelhado com ele (um pouco à frente) também conta
+const BOSS_LANE_GAP = 3.5;     // distância lateral (em x) abaixo da qual um carro "ocupa" a faixa
+// Todos os carros têm a mesma velocidade: este é o trecho de pista que o boss precisa ver com uma saída livre
+const BOSS_CLEAR_DEPTH = BOSS_LOOKAHEAD + BOSS_BODY_MARGIN;
+
+// A faixa tem um carro chegando (ou emparelhado) em relação a um veículo na posição z?
+function isLaneBlockedByCars(vehicleZ, laneX) {
+    for (const obs of activeObstacles) {
+        const dz = obs.position.z - vehicleZ;
+        if (dz > -BOSS_BODY_MARGIN && dz < BOSS_LOOKAHEAD && Math.abs(obs.position.x - laneX) < BOSS_LANE_GAP) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Ir de fromX até toX passa por alguma faixa ocupada? A faixa de onde ele está saindo não conta
+function isLanePathBlocked(vehicleZ, fromX, toX) {
+    if (Math.abs(toX - fromX) < 1) return isLaneBlockedByCars(vehicleZ, toX);
+
+    const dir = Math.sign(toX - fromX);
+    const total = (toX - fromX) * dir;
+    for (const laneX of currentLanes) {
+        const ahead = (laneX - fromX) * dir;
+        if (ahead > 1 && ahead <= total + 0.5 && isLaneBlockedByCars(vehicleZ, laneX)) return true;
+    }
+    return false;
+}
+
+// Escolhe a faixa do boss desviando dos carros e anda até ela.
+// avoidLastDrop = true (soltando lixo): prefere uma faixa diferente da última em que soltou.
+function steerGarbageTruck(frameRatio, avoidLastDrop) {
+    const truck = activeGarbageTruck;
+    const z = truck.position.z;
+    const x = truck.position.x;
+
+    const blocked = isLanePathBlocked(z, x, garbageTargetLaneX);
+    const repeatsLast = avoidLastDrop && garbageLastDropLaneX !== null && garbageTargetLaneX === garbageLastDropLaneX;
+
+    if (blocked || repeatsLast) {
+        const safeLanes = currentLanes.filter(l => !isLanePathBlocked(z, x, l));
+        const preferred = avoidLastDrop ? safeLanes.filter(l => l !== garbageLastDropLaneX) : safeLanes;
+        if (preferred.length > 0) {
+            garbageTargetLaneX = preferred[Math.floor(Math.random() * preferred.length)];
+        } else if (blocked && safeLanes.length > 0) {
+            // Só a faixa do último lixo está livre: não bater vem primeiro
+            garbageTargetLaneX = safeLanes[Math.floor(Math.random() * safeLanes.length)];
+        }
+    }
+
+    truck.position.x += (garbageTargetLaneX - truck.position.x) * 0.08 * frameRatio;
 }
 
 // Alcance (em z) em que polícia e ambulância enxergam carros e o jogador à frente
@@ -478,12 +542,25 @@ export function spawnObstacle() {
     const randomTemplateIndex = Math.floor(Math.random() * obstacleTemplates.length);
     const selectedTemplate = obstacleTemplates[randomTemplateIndex];
 
-    const obstacle = selectedTemplate.clone();
+    const spawnZ = getSpawnZ(); // além da borda de cima da tela (120 no computador)
+    let randomLaneIndex = Math.floor(Math.random() * currentLanes.length);
 
-    const randomLaneIndex = Math.floor(Math.random() * currentLanes.length);
+    // Com o caminhão de lixo na pista, um carro novo nunca fecha as 3 faixas no mesmo trecho: o boss precisa de uma saída
+    if (activeGarbageTruck) {
+        const occupied = [];
+        currentLanes.forEach((laneX, idx) => {
+            const taken = activeObstacles.some(o => o.position.z > spawnZ - BOSS_CLEAR_DEPTH && Math.abs(o.position.x - laneX) < BOSS_LANE_GAP);
+            if (taken) occupied.push(idx);
+        });
+
+        if (occupied.length >= 3) return; // sem saída: pula este carro
+        if (occupied.length === 2) randomLaneIndex = occupied[Math.floor(Math.random() * 2)]; // só em faixa já ocupada
+    }
+
     const xPos = currentLanes[randomLaneIndex];
 
-    obstacle.position.set(xPos, 2.4, 120);
+    const obstacle = selectedTemplate.clone();
+    obstacle.position.set(xPos, 2.4, spawnZ);
 
     scene.add(obstacle);
     activeObstacles.push(obstacle);
@@ -581,7 +658,7 @@ export function spawnItem() {
     const randomLaneIndex = Math.floor(Math.random() * currentLanes.length);
     const xPos = currentLanes[randomLaneIndex];
 
-    itemMesh.position.set(xPos, 3.5, 120); 
+    itemMesh.position.set(xPos, 3.5, getSpawnZ());
 
     scene.add(itemMesh);
     activeItems.push({
@@ -627,7 +704,11 @@ export function spawnGarbageTruck(onComplete) {
     const randomLaneIndex = Math.floor(Math.random() * currentLanes.length);
     const xPos = currentLanes[randomLaneIndex];
 
-    activeGarbageTruck.position.set(xPos, 2.4, 120); 
+    const bossSpawnZ = getSpawnZ();
+    activeGarbageTruck.position.set(xPos, 2.4, bossSpawnZ); 
+    garbageTargetLaneX = xPos;
+    // Mantém o tempo de chegada de antes (o trajeto original era de 120 até 18)
+    garbageApproachScale = (bossSpawnZ - 18) / (120 - 18);
 
     scene.add(activeGarbageTruck);
     garbageTruckState = 'approaching'; 
@@ -670,7 +751,7 @@ export function spawnPoliceCar(laneIndex, onComplete) {
     activePolice = policeTemplate.clone();
 
     const xPos = currentLanes[laneIndex];
-    activePolice.position.set(xPos, 2.4, -45); 
+    activePolice.position.set(xPos, 2.4, getDespawnZ());
 
     scene.add(activePolice);
     policeState = 'racing';
@@ -685,7 +766,7 @@ export function spawnAmbulance(laneIndex, onComplete) {
     activeAmbulance = ambulanceTemplate.clone();
 
     const xPos = currentLanes[laneIndex];
-    activeAmbulance.position.set(xPos, 2.4, -45); 
+    activeAmbulance.position.set(xPos, 2.4, getDespawnZ());
 
     scene.add(activeAmbulance);
     ambulanceState = 'racing';
