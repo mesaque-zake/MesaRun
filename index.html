@@ -194,16 +194,16 @@
                 </div>
             </div>
 
-            <!-- SIRENES DE PISTA (Tabler Icons SVG) -->
-            <div id="warning-siren-0" class="hidden absolute left-[32%] top-[45%] -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="#ef4444" stroke="#020617" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drop-shadow-lg"><path d="M12 1.67a1.9 1.9 0 0 0-1.7.97l-9.8 17a1.9 1.9 0 0 0 1.7 2.86h19.6a1.9 1.9 0 0 0 1.7-2.86l-9.8-17a1.9 1.9 0 0 0-1.7-.97z"></path><line x1="12" y1="9" x2="12" y2="13" stroke="#ffffff" stroke-width="3"></line><line x1="12" y1="17" x2="12.01" y2="17" stroke="#ffffff" stroke-width="3"></line></svg>
+            <!-- Farolete de aviso da polícia e da ambulância (o JS o posiciona na faixa do evento) -->
+            <div id="emergency-light" class="hidden absolute z-20 pointer-events-none -translate-x-1/2 -translate-y-1/2" style="left:50%;top:50%" aria-hidden="true">
+                <div class="siren-pop edu-popup-pop">
+                    <div class="siren-bar">
+                        <span class="siren-bulb siren-red"></span>
+                        <span class="siren-bulb siren-blue"></span>
+                    </div>
+                </div>
             </div>
-            <div id="warning-siren-1" class="hidden absolute left-[50%] top-[45%] -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="#ef4444" stroke="#020617" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drop-shadow-lg"><path d="M12 1.67a1.9 1.9 0 0 0-1.7.97l-9.8 17a1.9 1.9 0 0 0 1.7 2.86h19.6a1.9 1.9 0 0 0 1.7-2.86l-9.8-17a1.9 1.9 0 0 0-1.7-.97z"></path><line x1="12" y1="9" x2="12" y2="13" stroke="#ffffff" stroke-width="3"></line><line x1="12" y1="17" x2="12.01" y2="17" stroke="#ffffff" stroke-width="3"></line></svg>
-            </div>
-            <div id="warning-siren-2" class="hidden absolute left-[68%] top-[45%] -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="#ef4444" stroke="#020617" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drop-shadow-lg"><path d="M12 1.67a1.9 1.9 0 0 0-1.7.97l-9.8 17a1.9 1.9 0 0 0 1.7 2.86h19.6a1.9 1.9 0 0 0 1.7-2.86l-9.8-17a1.9 1.9 0 0 0-1.7-.97z"></path><line x1="12" y1="9" x2="12" y2="13" stroke="#ffffff" stroke-width="3"></line><line x1="12" y1="17" x2="12.01" y2="17" stroke="#ffffff" stroke-width="3"></line></svg>
-            </div>
+           
             <!-- Dica de controles (vidro fosco): só orienta, não é clicável -->
             <div id="controls-hint" class="hidden absolute inset-0 z-20 pointer-events-none select-none">
 
