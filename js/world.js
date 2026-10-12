@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { scene, dirLight, hemisphereLight, currentPresetIndex } from './engine.js';
+import { scene, dirLight, hemisphereLight, currentPresetIndex, getSpawnZ } from './engine.js';
 
 let roadGroup; 
 let dashedLines = []; 
@@ -205,7 +205,7 @@ export function setBrakingState(state) {
 const LARGURA = 4.5; 
 const ALTURA = 3.5;
 const PIECE_LENGTH = 4.5; 
-const NUM_PIECES = 85; 
+const NUM_PIECES = 105; // era 85: a pista precisa chegar além da borda de cima em telas estreitas (múltiplo de 5 e de 7, que são os ritmos dos prédios)
 const ROAD_HEIGHT = 2.4;
 
 export function createWorld(scene) { 
@@ -289,7 +289,8 @@ export function createWorld(scene) {
             });
 
             // Otimização: InstancedMesh para as linhas (1 Draw Call em vez de 120)
-            const linesPerLane = Math.floor(ROAD_LENGTH / 6);
+            const lineSpan = NUM_PIECES * PIECE_LENGTH; // mesma extensão das peças da rua
+            const linesPerLane = Math.ceil(lineSpan / 6);
             const totalLines = lineXPositions.length * linesPerLane;
             const instancedLines = new THREE.InstancedMesh(lineGeometry, lineMaterial, totalLines);
             instancedLines.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -297,7 +298,7 @@ export function createWorld(scene) {
             const dummy = new THREE.Object3D();
             let lineIdx = 0;
             for (let x of lineXPositions) {
-                for (let z = -ROAD_LENGTH / 2; z < ROAD_LENGTH / 2; z += 6) {
+                for (let z = -ROAD_LENGTH / 2; z < -ROAD_LENGTH / 2 + lineSpan; z += 6) {
                     dummy.position.set(x, ROAD_HEIGHT, z);
                     dummy.rotation.x = -Math.PI / 2;
                     dummy.updateMatrix();
@@ -622,8 +623,7 @@ export function spawnMacumbaSpecialEvent() {
     // Alinha perfeitamente sobre a calçada usando a mesma matemática de margem do poste de luz
     const spawnX = isLeft ? (-storedBordaDoAsfalto + 0.4) : (storedBordaDoAsfalto - 0.4);
 
-    group.position.set(spawnX, ROAD_HEIGHT, 120); // Surge lá atrás no horizonte (Z = 120)
-    scene.add(group);
+    group.position.set(spawnX, ROAD_HEIGHT, getSpawnZ()); // Surge além da borda de cima da tela (Z = 120 no computador)    scene.add(group);
     activeSpecialScenery.push(group);
 }
 
