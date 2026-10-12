@@ -1542,7 +1542,7 @@ function triggerSpecialEvent() {
     if (itemTimeout) clearTimeout(itemTimeout);
 
     if (nextSpecialEvent === 'garbage') {
-        triggerToast(0, "CUIDADO! Caminhão de lixo à frente!", "leo2.png", true);
+        triggerToast(0, "CUIDADO! Nosso inimigo, o Caminhão de lixo está vindo!", "leo2.png", true);
 
         setTimeout(() => {
             runWhenNotPaused(() => {
