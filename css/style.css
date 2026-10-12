@@ -787,3 +787,431 @@ body {
 .go-feedback.go-error { color: #fca5a5; }
 .go-feedback.go-ok { color: #6ee7b7; }
 
+/* Cor base das mensagens do card de fim de partida, e a variação de aviso */
+.go-feedback { color: #e2e8f0; }
+.go-feedback.go-warn { color: #fde68a; }
+
+/* =========================================
+   TELA DO RANKING
+   ========================================= */
+
+/* Reaproveita o card e o personagem do fim de partida, com espaço menor embaixo */
+.ranking-card { padding-bottom: 14vh; }
+.ranking-char { height: 13vh; }
+
+.ranking-title {
+    font-size: 2.8rem;
+    margin-bottom: 10px;
+}
+
+/* O troféu não herda o contorno do título */
+.ranking-trophy {
+    display: inline-block;
+    text-shadow: none;
+}
+
+.rank-close {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    z-index: 20;
+    color: #64748b;
+    transition: color 0.2s;
+}
+
+.rank-close:hover { color: #ffffff; }
+
+/* Abas: as duas pílulas dividem a largura */
+.rank-tabs {
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.rank-tabs .go-pill {
+    flex: 1;
+    padding: 3px 0;
+    font-size: 18px;
+}
+
+/* Lista rolável por dentro do card */
+.rank-list {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: min(34vh, 300px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 2px 4px 4px 2px;
+    margin-bottom: 12px;
+    scrollbar-width: thin;
+    scrollbar-color: #475569 transparent;
+}
+
+.rank-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    padding: 5px 8px;
+    background: rgba(2, 6, 23, 0.5);
+    border: 2px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+}
+
+/* Só as 10 primeiras linhas entram uma depois da outra */
+@keyframes rankRowIn {
+    from { opacity: 0; transform: translateX(-16px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+.rank-row-anim {
+    animation: rankRowIn 0.3s ease-out both;
+    animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+.rank-pos {
+    width: 26px;
+    flex-shrink: 0;
+    text-align: center;
+    font-family: 'Bangers', cursive;
+    font-size: 18px;
+    color: #94a3b8;
+}
+
+.rank-gold   { border-color: #facc15; background: linear-gradient(90deg, rgba(250, 204, 21, 0.22), rgba(2, 6, 23, 0.5)); }
+.rank-silver { border-color: #cbd5e1; background: linear-gradient(90deg, rgba(203, 213, 225, 0.20), rgba(2, 6, 23, 0.5)); }
+.rank-bronze { border-color: #fb923c; background: linear-gradient(90deg, rgba(251, 146, 60, 0.22), rgba(2, 6, 23, 0.5)); }
+
+.rank-gold .rank-pos,
+.rank-silver .rank-pos,
+.rank-bronze .rank-pos { font-size: 20px; }
+
+/* A própria pessoa: destaque verde (vem depois das medalhas e vence a cor da borda) */
+.rank-me {
+    border-color: #34d399;
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0.30), rgba(2, 6, 23, 0.5));
+}
+
+/* Nome em cima e unidade pequena embaixo */
+.rank-who {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.rank-name {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.15;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.rank-unit {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Kg numa cápsula âmbar, igual à do HUD (o texto usa a classe hud-text) */
+.rank-score {
+    flex-shrink: 0;
+    padding: 1px 9px;
+    font-family: 'Bangers', cursive;
+    font-size: 16px;
+    letter-spacing: 0.03em;
+    background: linear-gradient(180deg, #fcd34d 0%, #f59e0b 55%, #b45309 100%);
+    border: 2px solid var(--ink);
+    border-radius: 9999px;
+    box-shadow: 2px 2px 0 var(--ink);
+}
+
+.rank-empty {
+    padding: 22px 10px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: #94a3b8;
+}
+
+/* =========================================
+   RANKING: carregamento e aviso de conexão
+   ========================================= */
+
+/* Esconde as abas quando só há o ranking local (!important para vencer o display do go-toggle) */
+.is-off { display: none !important; }
+
+/* A mensagem de status ocupa a largura do card */
+.ranking-card .go-feedback {
+    width: 100%;
+    margin-bottom: 6px;
+}
+
+/* Linhas cinzas pulsando enquanto o ranking carrega */
+@keyframes rankPulse {
+    0%, 100% { opacity: 0.45; }
+    50%      { opacity: 0.95; }
+}
+
+.rank-skel {
+    min-height: 40px;
+    background: rgba(148, 163, 184, 0.16);
+    animation: rankPulse 1.1s ease-in-out infinite;
+    animation-delay: calc(var(--i, 0) * 120ms);
+}
+
+/* =========================================
+   ABERTURA: azul, cortina circular e botões animados
+   ========================================= */
+
+/* A cortina é uma máscara: o buraco no centro cresce até cobrir a tela */
+@property --iris {
+    syntax: '<percentage>';
+    inherits: false;
+    initial-value: -1%;
+}
+
+.intro-cover {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    background: #294277;
+    pointer-events: none;
+    -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent var(--iris), #000 calc(var(--iris) + 0.6%));
+    mask-image: radial-gradient(circle at 50% 50%, transparent var(--iris), #000 calc(var(--iris) + 0.6%));
+}
+
+@keyframes introIris {
+    from { --iris: -1%; }
+    to   { --iris: 112%; }
+}
+
+.intro-open .intro-cover {
+    animation: introIris 0.9s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+/* Navegador sem @property: o azul some com fade em vez da cortina */
+@keyframes introFade {
+    to { opacity: 0; }
+}
+
+.intro-simple.intro-open .intro-cover {
+    -webkit-mask-image: none;
+    mask-image: none;
+    animation: introFade 0.6s ease forwards;
+}
+
+/* Arte: escondida até o "soco" de entrada; desce até o centro da tela (valor medido pelo JS) */
+#menu-backdrop.intro-active #home-art {
+    opacity: 0;
+}
+
+#menu-backdrop.intro-active #home-art-wrap {
+    transform: translateY(var(--intro-dy, 0px));
+}
+
+/* Na revelação a arte sobe para o lugar do menu */
+#menu-backdrop.intro-active.intro-open #home-art-wrap {
+    transform: translateY(0);
+    transition: transform 0.8s cubic-bezier(0.34, 1.2, 0.64, 1) 0.2s;
+}
+
+/* Botões: invisíveis e sem toque durante a abertura */
+#menu-backdrop.intro-active #btn-play,
+#menu-backdrop.intro-active #btn-ranking,
+#menu-backdrop.intro-active #btn-settings,
+#menu-backdrop.intro-active #btn-mesabrasil {
+    opacity: 0;
+    pointer-events: none;
+}
+
+@keyframes menuPlayIn {
+    0%   { transform: translateY(140px) scale(0.5); opacity: 0; }
+    60%  { transform: translateY(-10px) scale(1.08); opacity: 1; }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes menuSideInLeft {
+    0%   { transform: translateX(-110px) rotate(-10deg) scale(0.7); opacity: 0; }
+    65%  { transform: translateX(6px) rotate(2deg) scale(1.05); opacity: 1; }
+    100% { transform: translateX(0) rotate(0deg) scale(1); opacity: 1; }
+}
+
+@keyframes menuSideInRight {
+    0%   { transform: translateX(110px) rotate(10deg) scale(0.7); opacity: 0; }
+    65%  { transform: translateX(-6px) rotate(-2deg) scale(1.05); opacity: 1; }
+    100% { transform: translateX(0) rotate(0deg) scale(1); opacity: 1; }
+}
+
+@keyframes menuLinkIn {
+    0%   { transform: translateY(30px) scale(0.85); opacity: 0; }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+#menu-backdrop.intro-active.intro-open #btn-play     { animation: menuPlayIn 0.6s ease-out 0.75s both; }
+#menu-backdrop.intro-active.intro-open #btn-ranking  { animation: menuSideInLeft 0.5s ease-out 0.95s both; }
+#menu-backdrop.intro-active.intro-open #btn-settings { animation: menuSideInRight 0.5s ease-out 1.05s both; }
+#menu-backdrop.intro-active.intro-open #btn-mesabrasil { animation: menuLinkIn 0.45s ease-out 1.25s both; }
+
+/* PLAY respirando de leve (usa a propriedade "scale", que não briga com o efeito de apertar do Tailwind) */
+@keyframes playBreathe {
+    0%, 100% { scale: 1; }
+    50%      { scale: 1.04; }
+}
+
+.play-breathe {
+    animation: playBreathe 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .play-breathe { animation: none; }
+}
+
+/* =========================================
+   MENU PRINCIPAL: botões cartoon
+   (as cores vêm das classes hud-pill-emerald / hud-pill-amber do HUD)
+   ========================================= */
+
+.menu-btn-slate { --pill-light: #94a3b8; --pill: #64748b; --pill-dark: #334155; }
+
+.menu-btn {
+    --sh: 3px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 5px 10px 5px 6px;
+    overflow: hidden;
+    cursor: pointer;
+    background: linear-gradient(180deg, var(--pill-light) 0%, var(--pill) 55%, var(--pill-dark) 100%);
+    border: 4px solid var(--ink);
+    border-radius: 9999px;
+    box-shadow: var(--sh) var(--sh) 0 var(--ink), inset 0 -3px 0 rgba(2, 6, 23, 0.18);
+    transition: transform 0.1s, box-shadow 0.1s, filter 0.15s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.menu-btn > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* Brilho no topo */
+.menu-btn::before {
+    content: '';
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    top: 3px;
+    height: 34%;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.30);
+    pointer-events: none;
+}
+
+/* Apertar: o botão desce até a sombra e ela some */
+.menu-btn:active {
+    transform: translate(var(--sh), var(--sh));
+    box-shadow: 0 0 0 var(--ink), inset 0 -3px 0 rgba(2, 6, 23, 0.18);
+}
+
+.menu-btn .hud-bubble {
+    width: 28px;
+    height: 28px;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.menu-btn .hud-bubble svg {
+    width: 18px;
+    height: 18px;
+}
+
+.menu-btn-text {
+    font-family: 'Bangers', cursive;
+    font-size: 1.05rem;
+    line-height: 1;
+    letter-spacing: 0.05em;
+}
+
+/* PLAY: maior */
+.menu-btn-play {
+    --sh: 4px;
+    gap: 10px;
+    padding: 7px 18px 7px 8px;
+}
+
+.menu-btn-play .hud-bubble { width: 46px; height: 46px; }
+.menu-btn-play .hud-bubble svg { width: 24px; height: 24px; margin-left: 2px; }
+.menu-btn-play .menu-btn-text { font-size: 2.6rem; padding-top: 2px; }
+
+/* Reflexo de luz que cruza o botão de tempos em tempos */
+@keyframes menuShine {
+    0%, 62% { transform: translateX(-150%) skewX(-20deg); }
+    100%    { transform: translateX(450%) skewX(-20deg); }
+}
+
+.menu-btn-shine::after {
+    content: '';
+    position: absolute;
+    top: -20%;
+    bottom: -20%;
+    left: 0;
+    width: 30%;
+    z-index: 2;
+    background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+    transform: translateX(-150%) skewX(-20deg);
+    animation: menuShine 3.8s ease-in-out infinite;
+    pointer-events: none;
+}
+
+/* Passar o mouse (só em aparelhos com mouse, para o toque não "grudar" o estado) */
+@media (hover: hover) {
+    .menu-btn:hover { filter: brightness(1.08); }
+    .menu-btn:hover .hud-bubble { transform: rotate(-10deg) scale(1.1); }
+}
+
+/* Link do Mesa Brasil: pílula de vidro, discreta */
+.menu-link-glass {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 14px;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    color: #ffffff;
+    text-decoration: none;
+    text-shadow: 0 1px 2px rgba(2, 6, 23, 0.55);
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.08));
+    border: 1px solid rgba(255, 255, 255, 0.40);
+    border-radius: 9999px;
+    box-shadow: 0 6px 18px rgba(2, 6, 23, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    transition: transform 0.1s, background 0.2s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.menu-link-glass svg { width: 14px; height: 14px; flex-shrink: 0; }
+.menu-link-glass .menu-link-arrow { width: 12px; height: 12px; opacity: 0.8; }
+.menu-link-glass:active { transform: scale(0.96); }
+
+@media (hover: hover) {
+    .menu-link-glass:hover { background: linear-gradient(160deg, rgba(255, 255, 255, 0.40), rgba(255, 255, 255, 0.14)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .menu-btn-shine::after { animation: none; opacity: 0; }
+}
