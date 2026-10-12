@@ -201,3 +201,84 @@ export function renderEngine(isPlaying) {
         renderer.render(scene, camera);
     }
 }
+// Converte um ponto do mundo em posição na tela (em % da área do jogo).
+// Devolve null se o ponto estiver atrás da câmera.
+const tempScreenPoint = new THREE.Vector3();
+
+export function worldToScreenPercent(x, y, z) {
+    if (!camera) return null;
+    camera.updateMatrixWorld();
+    tempScreenPoint.set(x, y, z).project(camera);
+    if (tempScreenPoint.z > 1) return null;
+    return {
+        x: (tempScreenPoint.x * 0.5 + 0.5) * 100,
+        y: (-tempScreenPoint.y * 0.5 + 0.5) * 100
+    };
+}
+
+// =========================================
+// ONDE OS OBJETOS NASCEM E SOMEM (depende da câmera e do formato da tela)
+// =========================================
+const SPAWN_Z_DEFAULT = 120;     // nascimento original (computador)
+const SPAWN_Z_MAX = 270;         // limite: a pista termina uns 13 depois disso
+const DESPAWN_Z_DEFAULT = -45;   // sumiço original
+const EDGE_MARGIN = 10;          // folga para o objeto estar 100% fora da tela
+
+// Câmera de teste: fica na posição de jogo, sem o suavizado de movimento da câmera real
+const probeCamera = new THREE.PerspectiveCamera();
+const probeRay = new THREE.Raycaster();
+const probePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -2.4); // plano y = 2.4 (o asfalto)
+const probeHit = new THREE.Vector3();
+const probeNdc = new THREE.Vector2();
+let probeKey = '';
+let probeTopZ = SPAWN_Z_DEFAULT;
+let probeBottomZ = DESPAWN_Z_DEFAULT;
+
+// Mede onde a borda de cima e a de baixo da tela tocam a pista. Só recalcula se câmera, lado ou formato mudarem.
+function updateVisibleRange() {
+    if (!camera) return;
+    const key = `${currentPresetIndex}|${isCameraFlipped}|${camera.aspect}`;
+    if (key === probeKey) return;
+    probeKey = key;
+
+    const preset = CAMERA_PRESETS[currentPresetIndex];
+    probeCamera.fov = camera.fov;
+    probeCamera.aspect = camera.aspect;
+    probeCamera.near = camera.near;
+    probeCamera.far = camera.far;
+    probeCamera.updateProjectionMatrix();
+    probeCamera.position.copy(isCameraFlipped ? preset.playRight : preset.playLeft);
+    probeCamera.lookAt(isCameraFlipped ? 2.5 : 0, 1.5, 8);
+    probeCamera.updateMatrixWorld(true);
+
+    let top = -Infinity;
+    let bottom = Infinity;
+    for (const ndcX of [-1, 0, 1]) {
+        probeNdc.set(ndcX, 1);
+        probeRay.setFromCamera(probeNdc, probeCamera);
+        if (probeRay.ray.intersectPlane(probePlane, probeHit)) top = Math.max(top, probeHit.z);
+
+        probeNdc.set(ndcX, -1);
+        probeRay.setFromCamera(probeNdc, probeCamera);
+        if (probeRay.ray.intersectPlane(probePlane, probeHit)) bottom = Math.min(bottom, probeHit.z);
+    }
+    probeTopZ = isFinite(top) ? top : SPAWN_Z_DEFAULT;
+    probeBottomZ = isFinite(bottom) ? bottom : DESPAWN_Z_DEFAULT;
+}
+
+// Z onde carros, itens, boss e macumba nascem: sempre além da borda de cima da tela.
+// Nunca menor que 120 (o valor original), então no computador nada muda.
+// Vale para a Diagonal Retrô e a Visão de Cima. A Câmera de Ação olha para o outro lado e fica como estava.
+export function getSpawnZ() {
+    if (currentPresetIndex === 2) return SPAWN_Z_DEFAULT;
+    updateVisibleRange();
+    return Math.min(SPAWN_Z_MAX, Math.max(SPAWN_Z_DEFAULT, probeTopZ + EDGE_MARGIN));
+}
+
+// Z abaixo do qual os veículos e itens somem: só depois de saírem pela borda de baixo da tela.
+// Nunca mais perto que -45 (o valor original).
+export function getDespawnZ() {
+    if (currentPresetIndex === 2) return DESPAWN_Z_DEFAULT;
+    updateVisibleRange();
+    return Math.min(DESPAWN_Z_DEFAULT, probeBottomZ - EDGE_MARGIN);
+}
