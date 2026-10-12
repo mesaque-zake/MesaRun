@@ -1,11 +1,11 @@
 import { initEngine, renderEngine, scene, triggerCameraShake,
-    setCameraFlippedState, setCameraPreset, renderer } from './engine.js';
+    setCameraFlippedState, setCameraPreset, renderer, worldToScreenPercent } from './engine.js';
 import { createWorld, updateWorld, setBrakingState, currentSpeed,
     setActiveBiome, spawnMacumbaSpecialEvent, resetWorldScenery } from './world.js';
 import { createEntities, movePlayerLeft, movePlayerRight, updateEntities,
     spawnObstacle, checkCollisions, resetEntities, spawnItem, checkItemCollections,
     setTruckTransitionTurn, spawnGarbageTruck, spawnPoliceCar,
-    spawnAmbulance, NEGATIVE_FOODS } from './entities.js';
+    spawnAmbulance, NEGATIVE_FOODS, getLaneX } from './entities.js';
 
 // Elementos da Interface (UI)
 const menuBackdrop = document.getElementById('menu-backdrop'); 
@@ -110,6 +110,11 @@ let specialEventTimeout = null;
 let macumbaTimeout = null;
 let nextSpecialEvent = 'garbage'; 
 let policeWarningIndex = 0;
+
+// Evita que a troca de bioma e os eventos especiais se atropelem
+let specialEventActive = false;      // true do aviso até o fim do evento (boss, polícia ou ambulância)
+let biomeTransitionActive = false;   // true durante os ~3 s da troca de bioma
+let biomeTransitionPending = false;  // a troca venceu no meio de um evento e espera o fim dele
 
 function init() { 
     initEngine();
@@ -589,6 +594,10 @@ function resetGameState() {
     hideControlsHint();
     goodCollected = 0;
     stopGameOverScoreAnimation();
+    specialEventActive = false;
+    biomeTransitionActive = false;
+    biomeTransitionPending = false;
+    hideEmergencyLight();
 
     for (let i = 1; i <= 3; i++) {
         const icon = document.getElementById(`brake-icon-${i}`);
@@ -1500,15 +1509,25 @@ function startBiomeTimer() {
 
     biomeTimer = setInterval(() => {
         if (isPlaying && !isGameOver) {
-            runWhenNotPaused(triggerBiomeTransition);
+            runWhenNotPaused(requestBiomeTransition);
         }
     }, 50000); 
+}
+
+// A troca de bioma espera o evento especial terminar, para não ligar o spawn no meio do boss
+function requestBiomeTransition() {
+    if (specialEventActive) {
+        biomeTransitionPending = true;
+        return;
+    }
+    triggerBiomeTransition();
 }
 
 function triggerBiomeTransition() { 
     if (spawnerTimeout) clearTimeout(spawnerTimeout); 
     if (itemTimeout) clearTimeout(itemTimeout);
 
+    biomeTransitionActive = true;
     setTruckTransitionTurn(isFlipped ? -0.20 : 0.20);
 
     setTimeout(() => {
@@ -1519,6 +1538,7 @@ function triggerBiomeTransition() {
 
         setTimeout(() => {
             setTruckTransitionTurn(0);
+            biomeTransitionActive = false;
             if (isPlaying && !isGameOver) {
                 startObstacleSpawner();
                 startItemSpawner();
@@ -1532,14 +1552,27 @@ function startSpecialEventTimer() {
 
     specialEventTimeout = setTimeout(() => {
         if (isPlaying && !isGameOver) {
-            runWhenNotPaused(triggerSpecialEvent);
+            runWhenNotPaused(requestSpecialEvent);
         }
     }, 30000); 
 }
 
+// O evento especial espera a troca de bioma acabar (confere de novo a cada 0,5 s)
+function requestSpecialEvent() {
+    if (!isPlaying || isGameOver) return;
+    if (biomeTransitionActive) {
+        specialEventTimeout = setTimeout(() => runWhenNotPaused(requestSpecialEvent), 500);
+        return;
+    }
+    triggerSpecialEvent();
+}
+
 function triggerSpecialEvent() { 
-    if (spawnerTimeout) clearTimeout(spawnerTimeout); 
+    // O caminhão de lixo respeita o trânsito: os carros continuam nascendo. Polícia e ambulância ainda pausam o spawn.
+    if (nextSpecialEvent !== 'garbage' && spawnerTimeout) clearTimeout(spawnerTimeout); 
     if (itemTimeout) clearTimeout(itemTimeout);
+
+    specialEventActive = true;
 
     if (nextSpecialEvent === 'garbage') {
         triggerToast(0, "CUIDADO! Nosso inimigo, o Caminhão de lixo está vindo!", "leo2.png", true);
@@ -1558,14 +1591,13 @@ function triggerSpecialEvent() {
         const isPolice = (nextSpecialEvent === 'police');
         policeWarningIndex = Math.floor(Math.random() * 3);
 
-        const siren = document.getElementById(`warning-siren-${policeWarningIndex}`);
-        if (siren) siren.classList.remove('hidden');
+        showEmergencyLight(policeWarningIndex);
 
         triggerToast(0, "Algum veículo está vindo rápido demais!", "leo3.png", true);
 
         setTimeout(() => {
             runWhenNotPaused(() => {
-                if (siren) siren.classList.add('hidden');
+                hideEmergencyLight();
                 if (isPlaying && !isGameOver) {
                     if (isPolice) {
                         spawnPoliceCar(policeWarningIndex, handleSpecialEventComplete);
@@ -1580,10 +1612,58 @@ function triggerSpecialEvent() {
     }
 }
 
+// =========================================
+// FAROLETE DE AVISO (polícia e ambulância)
+// =========================================
+const emergencyLight = document.getElementById('emergency-light');
+const EMERGENCY_SPAWN_Z = -45;   // onde polícia e ambulância nascem (o mesmo valor do entities.js)
+const LIGHT_MIN_X = 10;          // região segura da tela, em % (fora do HUD e dos avisos de Léo e Lucas)
+const LIGHT_MAX_X = 90;
+const LIGHT_MIN_Y = 14;
+const LIGHT_MAX_Y = 64;
+
+function clampNumber(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+}
+
+// Mostra o farolete na faixa do evento. Anda pela faixa, no sentido em que o veículo vai,
+// até achar o primeiro ponto que cai na região segura da tela (vale para as 3 câmeras).
+function showEmergencyLight(laneIndex) {
+    const laneX = getLaneX(laneIndex);
+    let first = null;
+    let spot = null;
+
+    for (let z = EMERGENCY_SPAWN_Z; z <= 40; z += 5) {
+        const p = worldToScreenPercent(laneX, 2.4, z);
+        if (!p) continue;
+        if (!first) first = p;
+        if (p.y >= LIGHT_MIN_Y && p.y <= LIGHT_MAX_Y) {
+            spot = p;
+            break;
+        }
+    }
+    if (!spot) spot = first || { x: 50, y: 60 };
+
+    emergencyLight.style.left = `${clampNumber(spot.x, LIGHT_MIN_X, LIGHT_MAX_X)}%`;
+    emergencyLight.style.top = `${clampNumber(spot.y, LIGHT_MIN_Y, LIGHT_MAX_Y)}%`;
+    emergencyLight.classList.remove('hidden');
+}
+
+function hideEmergencyLight() {
+    emergencyLight.classList.add('hidden');
+}
+
 function handleSpecialEventComplete() { 
+    specialEventActive = false;
     if (isPlaying && !isGameOver) {
-        startObstacleSpawner(); 
-        startItemSpawner(); 
+        if (biomeTransitionPending) {
+            // A troca de bioma estava esperando: ela religa os spawners quando terminar
+            biomeTransitionPending = false;
+            triggerBiomeTransition();
+        } else {
+            startObstacleSpawner(); 
+            startItemSpawner(); 
+        }
         startSpecialEventTimer(); 
     } 
 }
