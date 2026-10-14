@@ -33,6 +33,7 @@ let isCameraFlipped = false;
 // Permite ao main.js mudar a câmera em tempo real
 export function setCameraPreset(index) { 
     currentPresetIndex = index; 
+    if (camera) updateShadowWindow();
 }
 
 // Permite ao main.js alternar a câmera durante a transição
@@ -135,6 +136,9 @@ export function initEngine() {
     scene.add(dirLight.target);
 
     window.addEventListener('resize', onWindowResize, false);
+
+    // Janela de sombra: a aprovada no computador, estendida em tela estreita
+    updateShadowWindow();
 }
 
 function onWindowResize() { 
@@ -148,6 +152,7 @@ function onWindowResize() {
     camera.aspect = aspect;
     camera.fov = fovForAspect(aspect);
     camera.updateProjectionMatrix();
+    updateShadowWindow();
 
     renderer.setSize(width, height);
 }
@@ -281,4 +286,110 @@ export function getDespawnZ() {
     if (currentPresetIndex === 2) return DESPAWN_Z_DEFAULT;
     updateVisibleRange();
     return Math.min(DESPAWN_Z_DEFAULT, probeBottomZ - EDGE_MARGIN);
+}
+
+// =========================================
+// JANELA DE SOMBRA
+// Computador: a janela aprovada (1024x1024). Tela estreita: estendida até além da borda de cima da tela.
+// =========================================
+const SHADOW_LIGHT_OFFSET = new THREE.Vector3(-30, 45, 10); // luz em relação ao alvo (o que ficou aprovado)
+const SHADOW_TARGET_Z_DEFAULT = 22;
+const SHADOW_DEFAULT_Z_LOW = -31;     // trecho de pista que a janela aprovada cobre
+const SHADOW_DEFAULT_Z_HIGH = 75;
+
+// Ajustes da janela estendida (tela estreita)
+const SHADOW_NARROW_LIGHT_DIST = 90;  // luz mais afastada, na mesma direção: o cenário alto não passa do plano "near"
+const SHADOW_NARROW_FAR = 150;
+const SHADOW_TEXEL_MIN = 0.12;        // tamanho mínimo do pixel da sombra, em unidades do mundo (aprovado: ~0,1)
+const SHADOW_MAP_MAX_W = 2048;
+const SHADOW_MAP_MAX_H = 1024;
+const SHADOW_SIDE_REACH = 22;         // até onde, ao lado da pista, há cenário que projeta sombra (palpite)
+const SHADOW_HEIGHT_REACH = 22;       // altura máxima do cenário (palpite)
+const SHADOW_PAD = 6;
+
+const SHADOW_WORLD_UP = new THREE.Vector3(0, 1, 0);
+const shadowDir = new THREE.Vector3();
+const shadowRight = new THREE.Vector3();
+const shadowUp = new THREE.Vector3();
+let shadowKey = '';
+
+function setShadowMapSize(w, h) {
+    const shadow = dirLight.shadow;
+    if (shadow.mapSize.x === w && shadow.mapSize.y === h) return;
+    shadow.mapSize.set(w, h);
+    // O Three.js só recria o mapa se o antigo for descartado
+    if (shadow.map) {
+        shadow.map.dispose();
+        shadow.map = null;
+    }
+}
+
+export function updateShadowWindow() {
+    if (!dirLight || !camera) return;
+
+    const narrow = camera.aspect < 1 && currentPresetIndex !== 2;
+    let zLow = SHADOW_DEFAULT_Z_LOW;
+    let zHigh = SHADOW_DEFAULT_Z_HIGH;
+    if (narrow) {
+        updateVisibleRange();
+        zLow = Math.min(zLow, probeBottomZ - 3);
+        zHigh = Math.max(zHigh, Math.min(probeTopZ, SPAWN_Z_MAX) + 5);
+    }
+
+    const key = narrow ? `${zLow.toFixed(1)}|${zHigh.toFixed(1)}` : 'default';
+    if (key === shadowKey) return;
+    shadowKey = key;
+
+    const shadow = dirLight.shadow;
+
+    // Computador (e Câmera de Ação): exatamente a janela aprovada
+    if (!narrow) {
+        dirLight.target.position.set(0, 0, SHADOW_TARGET_Z_DEFAULT);
+        dirLight.position.copy(dirLight.target.position).add(SHADOW_LIGHT_OFFSET);
+        setShadowMapSize(1024, 1024);
+        shadow.camera.left = -50;
+        shadow.camera.right = 50;
+        shadow.camera.top = 25;
+        shadow.camera.bottom = -25;
+        shadow.camera.near = 0.5;
+        shadow.camera.far = 100;
+        shadow.bias = -0.001;
+        shadow.normalBias = 0.05;
+        shadow.camera.updateProjectionMatrix();
+        return;
+    }
+
+    // Tela estreita: janela do começo ao topo da tela. A luz anda junto com o alvo, e a direção do sol não muda.
+    const span = zHigh - zLow;
+    const targetZ = (zLow + zHigh) / 2;
+
+    shadowDir.copy(SHADOW_LIGHT_OFFSET).normalize().negate();        // direção da luz
+    shadowRight.crossVectors(shadowDir, SHADOW_WORLD_UP).normalize(); // eixo "esquerda/direita" da câmera de sombra
+    shadowUp.crossVectors(shadowRight, shadowDir).normalize();        // eixo "cima/baixo"
+
+    const halfU = Math.abs(shadowRight.z) * span / 2 + Math.abs(shadowRight.x) * SHADOW_SIDE_REACH + SHADOW_PAD;
+    const halfV = Math.abs(shadowUp.z) * span / 2 + Math.abs(shadowUp.x) * SHADOW_SIDE_REACH + SHADOW_PAD;
+    const topV = halfV + Math.abs(shadowUp.y) * SHADOW_HEIGHT_REACH;
+
+    // Mapa retangular: o mesmo tamanho de pixel nos dois eixos, até o limite do mapa
+    const texel = Math.max(SHADOW_TEXEL_MIN, (2 * halfU) / SHADOW_MAP_MAX_W);
+    const mapW = Math.min(SHADOW_MAP_MAX_W, Math.ceil((2 * halfU) / texel / 64) * 64);
+    const mapH = Math.min(SHADOW_MAP_MAX_H, Math.ceil((halfV + topV) / texel / 64) * 64);
+
+    dirLight.target.position.set(0, 0, targetZ);
+    dirLight.position.copy(dirLight.target.position)
+        .addScaledVector(shadowDir, -SHADOW_NARROW_LIGHT_DIST);
+    setShadowMapSize(mapW, mapH);
+
+    shadow.camera.left = -halfU;
+    shadow.camera.right = halfU;
+    shadow.camera.bottom = -halfV;
+    shadow.camera.top = topV;
+    shadow.camera.near = 0.5;
+    shadow.camera.far = SHADOW_NARROW_FAR;
+
+    // Pixels maiores pedem um pouco mais de correção; o bias em unidades do mundo continua o mesmo
+    shadow.bias = -0.001 * (100 / SHADOW_NARROW_FAR);
+    shadow.normalBias = 0.05 * Math.max(1, texel / 0.098);
+    shadow.camera.updateProjectionMatrix();
 }
