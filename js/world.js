@@ -196,6 +196,13 @@ export function setActiveBiome(biomeName) {
     }
 }
 
+// Velocidade de cruzeiro de cada câmera (o trânsito do entities.js usa para calibrar a distância entre carros)
+export function getCruiseSpeed() {
+    if (currentPresetIndex === 1) return 0.65;
+    if (currentPresetIndex === 2) return 0.75;
+    return 0.50;
+}
+
 // Função para o main.js ativar/desativar o estado do freio
 export function setBrakingState(state) { 
     isBraking = state; 
@@ -382,9 +389,7 @@ export function updateWorld() {
     }
 
     // Decide a velocidade alvo de cruzeiro com base na câmera ativa
-    let targetCruiseSpeed = 0.50;
-    if (currentPresetIndex === 1) targetCruiseSpeed = 0.65;
-    if (currentPresetIndex === 2) targetCruiseSpeed = 0.75;
+    const targetCruiseSpeed = getCruiseSpeed();
 
     // Interpolação de velocidade baseada no freio ou na velocidade alvo da câmera
     if (isBraking) {
