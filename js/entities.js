@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { currentSpeed, addTireMark } from './world.js';
+import { currentSpeed, addTireMark, getCruiseSpeed } from './world.js';
 import { scene, getSpawnZ, getDespawnZ } from './engine.js';
 
 let truckModel = null;
@@ -298,12 +298,14 @@ export function updateEntities(isBraking, deltaTime = 0.016) {
 
     const OBSTACLE_BASE_SPEED = 0.16; 
     const despawnZ = getDespawnZ(); // além da borda de baixo da tela (-45 no computador)
+    const spawnLimitZ = getSpawnZ() + 20; // carros que fugiram para a frente (freio) somem aqui, já fora da tela
+    updateTraffic((currentSpeed - OBSTACLE_BASE_SPEED) * frameRatio);
     for (let i = activeObstacles.length - 1; i >= 0; i--) {
         const obs = activeObstacles[i];
         const relativeSpeed = (currentSpeed - OBSTACLE_BASE_SPEED) * frameRatio;
         obs.position.z -= relativeSpeed;
 
-        if (obs.position.z < despawnZ) {
+        if (obs.position.z < despawnZ || obs.position.z > spawnLimitZ) {
             scene.remove(obs); 
             activeObstacles.splice(i, 1); 
         }
@@ -535,35 +537,110 @@ function steerEmergencyVehicle(vehicle, desiredX, baseSpeed, frameRatio) {
     return newTargetX;
 }
 
-// Instancia um clone aleatório de qualquer carro
-export function spawnObstacle() { 
-    if (obstacleTemplates.length === 0) return;
+// =========================================
+// TRÂNSITO: os carros nascem por DISTÂNCIA percorrida, não por tempo
+// =========================================
+const TRAFFIC_BASE_INTERVAL_S = 1.7;      // intervalo médio de antes (1,3 a 2,1 s). Se você mudou o do main.js, ajuste aqui
+const TRAFFIC_GAP_MIN_FACTOR = 1.3 / 1.7; // o sorteio varia de 0,76x a 1,24x da distância média
+const TRAFFIC_GAP_RANGE = 0.8 / 1.7;
+const TRAFFIC_CAR_SPEED = 0.16;           // o mesmo OBSTACLE_BASE_SPEED de updateEntities
+const TRAFFIC_STEP_PER_BIOME = 0.9;       // a cada bioma, a distância entre carros encolhe 10%
+const TRAFFIC_MIN_FACTOR = 0.6;           // teto: nunca abaixo de 60% da distância original
+const MIN_LANE_SPACING = 14;              // distância mínima entre dois carros da mesma faixa (palpite: não vejo o tamanho dos modelos)
+const CORRIDOR_CLEAR_SECONDS = 2.0;       // o corredor só muda se as duas faixas estiverem vazias por uns 2 s de pista
+const CORRIDOR_SHIFT_EVERY_MIN = 5;       // o corredor muda de faixa a cada 5 a 9 carros
+const CORRIDOR_SHIFT_EVERY_MAX = 9;
 
-    const randomTemplateIndex = Math.floor(Math.random() * obstacleTemplates.length);
-    const selectedTemplate = obstacleTemplates[randomTemplateIndex];
+let trafficOn = false;
+let trafficLevel = 0;      // quantas trocas de bioma já aconteceram
+let trafficTravel = 0;     // distância percorrida desde o último carro
+let nextCarGap = 0;        // distância até o próximo carro (0 = sorteia no próximo quadro)
+let corridorLane = 1;      // faixa que nunca recebe carro novo (0, 1 ou 2)
+let corridorTarget = -1;   // faixa vizinha para onde o corredor vai, esperando a pista ficar livre (-1 = nenhuma)
+let carsUntilShift = 7;
 
-    const spawnZ = getSpawnZ(); // além da borda de cima da tela (120 no computador)
-    let randomLaneIndex = Math.floor(Math.random() * currentLanes.length);
+export function setTrafficSpawning(on) {
+    trafficOn = on;
+}
 
-    // Com o caminhão de lixo na pista, um carro novo nunca fecha as 3 faixas no mesmo trecho: o boss precisa de uma saída
-    if (activeGarbageTruck) {
-        const occupied = [];
-        currentLanes.forEach((laneX, idx) => {
-            const taken = activeObstacles.some(o => o.position.z > spawnZ - BOSS_CLEAR_DEPTH && Math.abs(o.position.x - laneX) < BOSS_LANE_GAP);
-            if (taken) occupied.push(idx);
-        });
+export function increaseTrafficLevel() {
+    trafficLevel++;
+}
 
-        if (occupied.length >= 3) return; // sem saída: pula este carro
-        if (occupied.length === 2) randomLaneIndex = occupied[Math.floor(Math.random() * 2)]; // só em faixa já ocupada
-    }
+function resetTraffic() {
+    trafficOn = false;
+    trafficLevel = 0;
+    trafficTravel = 0;
+    nextCarGap = 0;
+    corridorLane = 1;
+    corridorTarget = -1;
+    carsUntilShift = 7;
+}
 
-    const xPos = currentLanes[randomLaneIndex];
+// Distância (em unidades de pista) até o próximo carro: o ritmo antigo no cruzeiro de cada câmera, mais denso a cada bioma
+function pickCarGap() {
+    const relativePerSecond = Math.max(0.1, getCruiseSpeed() - TRAFFIC_CAR_SPEED) * 60;
+    const levelFactor = Math.max(TRAFFIC_MIN_FACTOR, Math.pow(TRAFFIC_STEP_PER_BIOME, trafficLevel));
+    return TRAFFIC_BASE_INTERVAL_S * relativePerSecond * levelFactor
+        * (TRAFFIC_GAP_MIN_FACTOR + Math.random() * TRAFFIC_GAP_RANGE);
+}
 
+// A faixa tem algum carro na região de nascimento (da borda de nascimento até "depth" para baixo)?
+function laneHasCarNear(laneIndex, spawnZ, depth) {
+    const laneX = currentLanes[laneIndex];
+    return activeObstacles.some(o => o.position.z > spawnZ - depth && Math.abs(o.position.x - laneX) < BOSS_LANE_GAP);
+}
+
+function spawnObstacle(laneIndex, spawnZ) {
+    const selectedTemplate = obstacleTemplates[Math.floor(Math.random() * obstacleTemplates.length)];
     const obstacle = selectedTemplate.clone();
-    obstacle.position.set(xPos, 2.4, spawnZ);
+    obstacle.position.set(currentLanes[laneIndex], 2.4, spawnZ);
 
     scene.add(obstacle);
     activeObstacles.push(obstacle);
+}
+
+// Chamada a cada quadro por updateEntities, com a velocidade dos carros em relação a você
+function updateTraffic(relativeSpeed) {
+    if (!trafficOn || obstacleTemplates.length === 0) return;
+
+    // Só soma quando os carros se aproximam. Com o freio eles se afastam, e o nascimento fica em pausa
+    if (relativeSpeed > 0) trafficTravel += relativeSpeed;
+    if (nextCarGap <= 0) nextCarGap = pickCarGap();
+    if (trafficTravel < nextCarGap) return;
+
+    const spawnZ = getSpawnZ();
+    const laneCount = currentLanes.length;
+    const clearDepth = Math.max(0.1, getCruiseSpeed() - TRAFFIC_CAR_SPEED) * 60 * CORRIDOR_CLEAR_SECONDS;
+
+    // Hora de mudar o corredor: escolhe uma faixa vizinha...
+    if (corridorTarget === -1 && carsUntilShift <= 0) {
+        const neighbors = [corridorLane - 1, corridorLane + 1].filter(i => i >= 0 && i < laneCount);
+        corridorTarget = neighbors[Math.floor(Math.random() * neighbors.length)];
+    }
+    // ...e só troca quando as duas faixas estão vazias na região de nascimento
+    if (corridorTarget !== -1
+        && !laneHasCarNear(corridorLane, spawnZ, clearDepth)
+        && !laneHasCarNear(corridorTarget, spawnZ, clearDepth)) {
+        corridorLane = corridorTarget;
+        corridorTarget = -1;
+        carsUntilShift = CORRIDOR_SHIFT_EVERY_MIN
+            + Math.floor(Math.random() * (CORRIDOR_SHIFT_EVERY_MAX - CORRIDOR_SHIFT_EVERY_MIN + 1));
+    }
+
+    // Faixas que podem receber o carro: nunca o corredor, nem a faixa que está sendo esvaziada para virar corredor
+    const candidates = [];
+    for (let i = 0; i < laneCount; i++) {
+        if (i === corridorLane || i === corridorTarget) continue;
+        if (laneHasCarNear(i, spawnZ, MIN_LANE_SPACING)) continue;
+        candidates.push(i);
+    }
+    if (candidates.length === 0) return; // sem faixa livre agora: tenta no próximo quadro
+
+    spawnObstacle(candidates[Math.floor(Math.random() * candidates.length)], spawnZ);
+    trafficTravel = 0;
+    nextCarGap = pickCarGap();
+    if (corridorTarget === -1) carsUntilShift--;
 }
 
 // VERIFICA COLISÕES UNIFICADAS
@@ -629,6 +706,7 @@ export function resetEntities() {
     targetTruckRotationY = 0;
     garbageEventsThisGame = 0; // a "primeira vez" do boss volta a valer na próxima partida
     garbageLastDropLaneX = null;
+    resetTraffic();
 }
 
 // Gera uma doação saudável ou proibida
