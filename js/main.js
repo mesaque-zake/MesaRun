@@ -3,7 +3,7 @@ import { initEngine, renderEngine, scene, triggerCameraShake,
 import { createWorld, updateWorld, setBrakingState, currentSpeed,
     setActiveBiome, spawnMacumbaSpecialEvent, resetWorldScenery } from './world.js';
 import { createEntities, movePlayerLeft, movePlayerRight, updateEntities,
-    spawnObstacle, checkCollisions, resetEntities, spawnItem, checkItemCollections,
+    setTrafficSpawning, increaseTrafficLevel, checkCollisions, resetEntities, spawnItem, checkItemCollections,
     setTruckTransitionTurn, spawnGarbageTruck, spawnPoliceCar,
     spawnAmbulance, NEGATIVE_FOODS, getLaneX } from './entities.js';
 
@@ -528,20 +528,13 @@ function updateBrakeUI() {
     } 
 }
 
+// Os carros agora nascem por distância percorrida (entities.js), não por tempo: aqui só liga e desliga
 function startObstacleSpawner() { 
-    if (spawnerTimeout) clearTimeout(spawnerTimeout);
+    setTrafficSpawning(true);
+}
 
-    function scheduleNextObstacle() {
-        if (!isPlaying || isGameOver || isPaused) return;
-        // Tráfego ligeiramente mais intenso e divertido
-        const randomDelay = Math.random() * 800 + 1300; 
-        spawnerTimeout = setTimeout(() => {
-            if (!isPaused) spawnObstacle(); // pausado: pula este carro, sem empilhar no horizonte
-            scheduleNextObstacle();
-        }, randomDelay);
-    }
-
-    scheduleNextObstacle();
+function stopObstacleSpawner() {
+    setTrafficSpawning(false);
 }
 
 function triggerGameOver() { 
@@ -1524,7 +1517,7 @@ function requestBiomeTransition() {
 }
 
 function triggerBiomeTransition() { 
-    if (spawnerTimeout) clearTimeout(spawnerTimeout); 
+    stopObstacleSpawner();
     if (itemTimeout) clearTimeout(itemTimeout);
 
     biomeTransitionActive = true;
@@ -1535,6 +1528,7 @@ function triggerBiomeTransition() {
         setCameraFlippedState(isFlipped);
         currentBiomeIndex = (currentBiomeIndex + 1) % BIOMES_LIST.length;
         setActiveBiome(BIOMES_LIST[currentBiomeIndex]);
+        increaseTrafficLevel(); // +10% de trânsito a cada bioma
 
         setTimeout(() => {
             setTruckTransitionTurn(0);
@@ -1569,7 +1563,7 @@ function requestSpecialEvent() {
 
 function triggerSpecialEvent() { 
     // O caminhão de lixo respeita o trânsito: os carros continuam nascendo. Polícia e ambulância ainda pausam o spawn.
-    if (nextSpecialEvent !== 'garbage' && spawnerTimeout) clearTimeout(spawnerTimeout); 
+    if (nextSpecialEvent !== 'garbage') stopObstacleSpawner();
     if (itemTimeout) clearTimeout(itemTimeout);
 
     specialEventActive = true;
