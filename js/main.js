@@ -592,7 +592,7 @@ function resetGameState() {
     praiseTurn = 0;
     resetEduPopupState();
     hideControlsHint();
-    goodCollected = 0;
+    goodCollected =  0;
     stopGameOverScoreAnimation();
     specialEventActive = false;
     biomeTransitionActive = false;
