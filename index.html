@@ -80,6 +80,12 @@
                         <span class="menu-btn-text hud-text">PLAY</span>
                     </button>
 
+                    <!-- Guia Rápido: a bolinha mostra a miniatura de um modelo 3D (o JS preenche) -->
+                    <button id="btn-guide" class="menu-btn menu-btn-guide menu-btn-cyan w-full">
+                        <span class="hud-bubble"><img id="guide-btn-icon" alt="" class="hidden"></span>
+                        <span class="menu-btn-text hud-text">GUIA RÁPIDO</span>
+                    </button>
+
                     <!-- Botões Auxiliares -->
                     <div class="grid grid-cols-2 gap-3 w-full">
                         <button id="btn-ranking" class="menu-btn menu-btn-sm hud-pill-amber">
@@ -134,6 +140,249 @@
 
                             <!-- Lucas colada na base do card -->
                             <img src="assets/sprite/cartoon/ranking.png" alt="Lucas troféu" class="gameover-char ranking-char">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal do Guia Rápido (por enquanto: estrutura e prova de cores das miniaturas) -->
+                <div id="guide-modal" class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex-col items-center w-[310px] max-w-[94%] z-40">
+                    <div class="edu-popup-pop relative w-full">
+                        <div class="gameover-card guide-card">
+                            <button id="btn-close-guide-x" class="rank-close guide-close" aria-label="Fechar">✕</button>
+
+                            <h2 class="gameover-title guide-title">GUIA RÁPIDO</h2>
+                            <p class="gameover-sub">Como realizar a coleta perfeita</p>
+
+                            <div id="guide-scroll" class="guide-scroll">
+
+                                <!-- Regras de proibição -->
+                                <div class="guide-alert guide-alert-red">
+                                    <div class="guide-alert-body">
+                                        <h3 class="guide-alert-title">Regras de Proibição <span class="guide-badge">Inviolável</span></h3>
+                                        <ul class="guide-rules">
+                                            <li><img class="guide-ico" data-thumb="carton-small.glb" alt=""><span>Alimentos com o prazo de validade <b>vencido</b>.</span></li>
+                                            <li><img class="guide-ico" data-thumb="bowl-broth.glb" alt=""><span>Refeições prontas ou sobras de alimentos já preparados.</span></li>
+                                            <li><img class="guide-ico" data-thumb="wine-red.glb" alt=""><span>Quaisquer tipos de bebidas alcoólicas.</span></li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <!-- Risco de contaminação -->
+                                <div class="guide-alert guide-alert-lime">
+                                    <img class="guide-ico" data-thumb="apple.glb" alt="">
+                                    <div class="guide-alert-body">
+                                        <h3 class="guide-alert-title">Risco de Contaminação</h3>
+                                        <p class="guide-alert-text">Em nenhuma hipótese colete alimentos com sinais de deterioração, marcas de pragas, roedores, <b>mofo</b>, fungos, carunchos ou odores estranhos.</p>
+                                    </div>
+                                </div>
+
+                                <!-- 1. Perecíveis -->
+                                <div class="guide-acc is-open">
+                                    <button type="button" class="guide-acc-btn" aria-expanded="true">
+                                        <span class="guide-ico-stack">
+                                            <img class="guide-ico" data-thumb="lemon.glb" alt="">
+                                            <img class="guide-ico" data-thumb="carrot.glb" alt="">
+                                            <img class="guide-ico" data-thumb="egg.glb" alt="">
+                                        </span>
+                                        <span class="guide-acc-title hud-text">Alimentos Perecíveis</span>
+                                        <span class="guide-acc-arrow" aria-hidden="true">▼</span>
+                                    </button>
+                                    <div class="guide-acc-body"><div class="guide-acc-inner"><div class="guide-acc-pad">
+
+                                        <div>
+                                            <h4 class="guide-sub"><img class="guide-ico" data-thumb="tomato.glb" alt=""><span>Frutas, Legumes, Verduras e Ovos</span></h4>
+                                            <div class="guide-box guide-yes">
+                                                <h5 class="guide-box-title">O que pode</h5>
+                                                <ul class="guide-list">
+                                                    <li>Alimentos levemente murchos, amarelados ou com tamanho inferior ao padrão.</li>
+                                                    <li>Frutas bem maduras (com pelo menos 50% de aproveitamento), com manchas, queimaduras de sol ou lesões já cicatrizadas.</li>
+                                                    <li>Bananas e uvas soltas do cacho ou da penca, desde que com a casca ou pedúnculos íntegros e sem bolor.</li>
+                                                    <li>Batatas brotadas ou esverdeadas.</li>
+                                                    <li>Ovos íntegros na validade (caixas/bandejas).</li>
+                                                </ul>
+                                            </div>
+                                            <div class="guide-box guide-no">
+                                                <h5 class="guide-box-title">Não coletar</h5>
+                                                <ul class="guide-list">
+                                                    <li>Bolor, podridão ou amolecimento do tecido.</li>
+                                                    <li>Cortes, buracos ou perfurações que exponham o interior (miolo) do alimento.</li>
+                                                    <li>Frutas e legumes já manipulados (cortados ao meio, ralados), a menos que tenham embalagem, rótulo ou aprovação da Base.</li>
+                                                    <li>Ovos quebrados ou estragados.</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <h4 class="guide-sub">
+                                                <span class="guide-ico-stack">
+                                                    <img class="guide-ico" data-thumb="carton.glb" alt="">
+                                                    <img class="guide-ico" data-thumb="meat-raw.glb" alt="">
+                                                    <img class="guide-ico" data-thumb="fish.glb" alt="">
+                                                </span>
+                                                <span>Refrigerados e Congelados</span>
+                                            </h4>
+                                            <div class="guide-callout guide-callout-blue">
+                                                <b>Regra de ouro:</b> produtos dentro da validade e mantidos na temperatura correta indicada pelo fabricante. A temperatura deve ser aferida com termômetro no momento da coleta!
+                                            </div>
+                                            <div class="guide-box guide-yes">
+                                                <h5 class="guide-box-title">O que pode</h5>
+                                                <ul class="guide-list">
+                                                    <li>Na validade e temperatura correta aferida.</li>
+                                                    <li>Congelados fracionados (como salgados), desde que possuam etiqueta do Programa com nome, data de congelamento e validade.</li>
+                                                </ul>
+                                            </div>
+                                            <div class="guide-box guide-no">
+                                                <h5 class="guide-box-title">Não coletar</h5>
+                                                <ul class="guide-list">
+                                                    <li>Armazenados fora da temperatura recomendada.</li>
+                                                    <li>Embalagens a vácuo que tenham perdido o vácuo (violadas).</li>
+                                                    <li>Produtos sem identificação ou sem rotulagem com informações mínimas.</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <h4 class="guide-sub"><img class="guide-ico" data-thumb="loaf-baguette.glb" alt=""><span>Produtos de Padaria</span></h4>
+                                            <div class="guide-box guide-yes">
+                                                <h5 class="guide-box-title">O que pode</h5>
+                                                <ul class="guide-list">
+                                                    <li>Pães, bolos e biscoitos <b>sem</b> recheio ou cobertura.</li>
+                                                    <li>Embalados, etiquetados com nome, fabricação e validade.</li>
+                                                </ul>
+                                            </div>
+                                            <div class="guide-box guide-no">
+                                                <h5 class="guide-box-title">Não coletar</h5>
+                                                <ul class="guide-list">
+                                                    <li>Pães recheados, bolos confeitados ou tortas (só podem ser coletados após avaliação da Base).</li>
+                                                    <li>Produtos expostos sem proteção (risco de sujeira) ou com prazo de validade vencido.</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+
+                                    </div></div></div>
+                                </div>
+
+                                <!-- 2. Não perecíveis -->
+                                <div class="guide-acc">
+                                    <button type="button" class="guide-acc-btn" aria-expanded="false">
+                                        <span class="guide-ico-stack">
+                                            <img class="guide-ico" data-thumb="can.glb" alt="">
+                                            <img class="guide-ico" data-thumb="carton-small.glb" alt="">
+                                        </span>
+                                        <span class="guide-acc-title hud-text">Alimentos Não Perecíveis</span>
+                                        <span class="guide-acc-arrow" aria-hidden="true">▼</span>
+                                    </button>
+                                    <div class="guide-acc-body"><div class="guide-acc-inner"><div class="guide-acc-pad">
+
+                                        <div>
+                                            <h4 class="guide-sub"><img class="guide-ico" data-thumb="carton-small.glb" alt=""><span>Secos e Industrializados</span></h4>
+                                            <div class="guide-box guide-yes">
+                                                <h5 class="guide-box-title">O que pode</h5>
+                                                <ul class="guide-list">
+                                                    <li>Embalagens íntegras, com todas as informações legíveis (designação, fabricante, validade e lote).</li>
+                                                    <li>Pequenos furos acidentais, apenas se a embalagem puder ser vedada logo após a abertura.</li>
+                                                </ul>
+                                            </div>
+                                            <div class="guide-box guide-no">
+                                                <h5 class="guide-box-title">Não coletar</h5>
+                                                <ul class="guide-list">
+                                                    <li>Embalagens úmidas ou rasgadas expondo o alimento ao meio externo.</li>
+                                                    <li>Lacre de segurança rompido.</li>
+                                                    <li>Marcas de pragas, roedores ou excrementos.</li>
+                                                    <li>Dietas enterais com qualquer avaria.</li>
+                                                    <li>Manchas de líquidos desconhecidos.</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <h4 class="guide-sub"><img class="guide-ico" data-thumb="can-small.glb" alt=""><span>Enlatados</span></h4>
+                                            <div class="guide-box guide-yes">
+                                                <h5 class="guide-box-title">O que pode</h5>
+                                                <ul class="guide-list">
+                                                    <li>Latas em boas condições físicas e com rótulo.</li>
+                                                </ul>
+                                            </div>
+                                            <div class="guide-box guide-no">
+                                                <h5 class="guide-box-title">Não coletar</h5>
+                                                <ul class="guide-list">
+                                                    <li>Latas estufadas ou inchadas.</li>
+                                                    <li>Ferrugem ou vazamentos.</li>
+                                                    <li>Amassados nas junções (costura, tampa ou fundo).</li>
+                                                    <li>Amassados pontiagudos (formato de dente).</li>
+                                                    <li>Ausência de rótulo ou danificado.</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+
+                                    </div></div></div>
+                                </div>
+
+                                <!-- 3. Embalagens abertas -->
+                                <div class="guide-acc">
+                                    <button type="button" class="guide-acc-btn" aria-expanded="false">
+                                        <span class="guide-ico-stack">
+                                            <img class="guide-ico" data-thumb="candy-bar-wrapper.glb" alt="">
+                                            <img class="guide-ico" data-thumb="chocolate-wrapper.glb" alt="">
+                                            <img class="guide-ico" data-thumb="can-open.glb" alt="">
+                                        </span>
+                                        <span class="guide-acc-title hud-text">Embalagens Abertas</span>
+                                        <span class="guide-acc-arrow" aria-hidden="true">▼</span>
+                                    </button>
+                                    <div class="guide-acc-body"><div class="guide-acc-inner"><div class="guide-acc-pad">
+
+                                        <div>
+                                            <div class="guide-box guide-no">
+                                                <h5 class="guide-box-title">Não coletar</h5>
+                                                <ul class="guide-list">
+                                                    <li>Embalagens úmidas ou rasgadas, expondo o alimento ao meio externo.</li>
+                                                    <li>Lacre de segurança rompido.</li>
+                                                    <li>Latas estufadas, com ferrugem, vazamentos ou amassados nas junções.</li>
+                                                </ul>
+                                            </div>
+                                            <p class="guide-note">Exceção: pequenos furos acidentais só são aceitos se a embalagem puder ser vedada logo após a abertura.</p>
+                                        </div>
+
+                                    </div></div></div>
+                                </div>
+
+                                <!-- 4. Outras doações -->
+                                <div class="guide-acc">
+                                    <button type="button" class="guide-acc-btn" aria-expanded="false">
+                                        <span class="guide-ico-stack">
+                                            <img class="guide-ico" data-thumb="carton-small.glb" alt="">
+                                        </span>
+                                        <span class="guide-acc-title hud-text">Outras Doações</span>
+                                        <span class="guide-acc-arrow" aria-hidden="true">▼</span>
+                                    </button>
+                                    <div class="guide-acc-body"><div class="guide-acc-inner"><div class="guide-acc-pad">
+
+                                        <div>
+                                            <h4 class="guide-sub"><span>Higiene, Limpeza, Descartáveis e Ração</span></h4>
+                                            <div class="guide-box guide-yes">
+                                                <h5 class="guide-box-title">O que pode</h5>
+                                                <ul class="guide-list">
+                                                    <li>Produtos de higiene pessoal, limpeza e descartáveis dentro da validade.</li>
+                                                    <li>Ração para animais (cães e gatos), desde que haja demanda identificada de instituições parceiras para recebê-las.</li>
+                                                    <li>Descartáveis fora da caixa original (secundária).</li>
+                                                </ul>
+                                            </div>
+                                            <div class="guide-box guide-no">
+                                                <h5 class="guide-box-title">Não fazer</h5>
+                                                <div class="guide-callout guide-callout-orange">
+                                                    <b>Logística cruzada:</b> transportar produtos químicos ou de limpeza misturados com alimentos (devem estar totalmente segregados ou na cabine do motorista).
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    </div></div></div>
+                                </div>
+
+                            </div>
+
+                            <button id="btn-close-guide" class="w-full bg-red-500 hover:bg-red-400 text-white font-[Bangers] text-xl tracking-wide py-1.5 rounded-xl border-4 border-slate-950 shadow-[3px_3px_0px_#020617] active:translate-y-[3px] active:shadow-none transition-all duration-100">
+                                VOLTAR
+                            </button>
                         </div>
                     </div>
                 </div>
