@@ -24,8 +24,12 @@ const HEALTHY_FOODS = [
     'loaf-baguette.glb', 'loaf-round.glb', 'loaf.glb', 'meat-raw.glb', 'onion.glb',
     'orange.glb', 'paprika.glb', 'pear.glb', 'pepper.glb', 'pineapple.glb',
     'pumpkin.glb', 'radish.glb', 'soda-bottle.glb', 'soda-can.glb',
-    'strawberry.glb', 'tomato.glb', 'watermelon.glb'
+    'strawberry.glb', 'tomato.glb', 'watermelon.glb',
+    'mushroom.glb'
 ];
+
+// Comidas boas que ficam em outra pasta de assets (o arquivo não precisa sair do lugar)
+const HEALTHY_FOLDER_OVERRIDES = { 'mushroom.glb': 'negativefood' };
 
 export const NEGATIVE_FOODS = [
     { file: 'advocado-half.glb', msg: 'Hey... Isso já foi manipulado!', penalty: 20, category: 'manipulado' },
@@ -57,8 +61,7 @@ export const NEGATIVE_FOODS = [
     { file: 'pudding.glb', folder: 'food', msg: 'Não coletamos doces com recheio!', penalty: 10, category: 'doce' },
     { file: 'wine-red.glb', msg: 'NÃO COLETAMOS ISSO!', penalty: 50, category: 'super' },
     { file: 'wine-white.glb', msg: 'NÃO COLETAMOS ISSO!', penalty: 50, category: 'super' },
-    { file: 'mushroom-half.glb', msg: 'NÃO COLETAMOS ISSO!', penalty: 50, category: 'super' },
-    { file: 'mushroom.glb', msg: 'NÃO COLETAMOS ISSO!', penalty: 50, category: 'super' },
+    { file: 'mushroom-half.glb', msg: 'Hey... Isso já foi manipulado!', penalty: 20, category: 'manipulado' },
     { file: 'styrofoam-dinner.glb', msg: 'HAHAHA! O "Mesa São Paulo" entregava isso em 1994, hoje não mais!', penalty: 0, category: 'easterEgg' },
     { file: 'egg-half.glb', msg: 'Espera... isso aí é lixo!', penalty: 20, category: 'lixo' },
     { file: 'fish-bones.glb', msg: 'Espera... isso aí é lixo!', penalty: 20, category: 'lixo' },
@@ -198,7 +201,7 @@ export function createEntities(scene) {
 
     // DOAÇÕES SAUDÁVEIS
     HEALTHY_FOODS.forEach((file) => {
-        const path = `assets/sprite/food/${file}`;
+        const path = `assets/sprite/${HEALTHY_FOLDER_OVERRIDES[file] || 'food'}/${file}`;
         loader.load(
             path, 
             (gltf) => {
@@ -261,6 +264,12 @@ export function movePlayerRight() {
         currentLaneIndex++; 
         targetX = currentLanes[currentLaneIndex]; 
     } 
+}
+
+// Modelo de uma comida (boa ou proibida) pelo nome do arquivo. Devolve null se ainda não carregou.
+// O main.js usa para gerar as miniaturas do Guia e do pop-up.
+export function getFoodModel(file) {
+    return healthyTemplates[file] || negativeTemplates[file] || null;
 }
 
 // Posição x (no mundo) de uma faixa: 0, 1 ou 2. O main.js usa para posicionar o farolete de aviso.
