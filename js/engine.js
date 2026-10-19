@@ -393,3 +393,102 @@ export function updateShadowWindow() {
     shadow.normalBias = 0.05 * Math.max(1, texel / 0.098);
     shadow.camera.updateProjectionMatrix();
 }
+// =========================================
+// MINIATURAS DOS MODELOS 3D (ícones do Guia e do pop-up)
+// Desenha o modelo numa cena separada, com luz própria, e devolve uma imagem transparente.
+// A cena do jogo (luz, sombra, cenário) não é tocada.
+// =========================================
+const THUMB_SIZE = 192;            // pixels do desenho (na tela aparece menor, e o navegador suaviza as bordas)
+const THUMB_FILL = 0.95;           // quanto do quadro o modelo ocupa (1 = encosta nas bordas)
+const THUMB_ENCODE_SRGB = true;    // se as cores saírem lavadas ou claras demais, troque para false
+const THUMB_AMBIENT = 1.4;         // luz geral: se estiver escuro, suba; se estourar, desça
+const THUMB_KEY = 2.2;             // luz principal
+
+const thumbScene = new THREE.Scene();
+const thumbCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 20);
+thumbCamera.position.set(0, 0, 6);
+const thumbHolder = new THREE.Group();
+const thumbKeyLight = new THREE.DirectionalLight(0xffffff, THUMB_KEY);
+thumbKeyLight.position.set(2, 3, 4);
+thumbScene.add(new THREE.AmbientLight(0xffffff, THUMB_AMBIENT), thumbKeyLight, thumbHolder);
+
+const thumbBox = new THREE.Box3();
+const thumbSizeVec = new THREE.Vector3();
+const thumbCenterVec = new THREE.Vector3();
+const thumbPrevColor = new THREE.Color();
+const thumbBuffer = new Uint8Array(THUMB_SIZE * THUMB_SIZE * 4);
+let thumbTarget = null;
+let thumbCanvas = null;
+let thumbCtx = null;
+
+// O desenho fora da tela sai em luz linear: esta tabela converte para o formato normal de imagem (sRGB)
+const thumbEncode = new Uint8Array(256);
+for (let i = 0; i < 256; i++) {
+    const l = i / 255;
+    const s = THUMB_ENCODE_SRGB ? (l <= 0.0031308 ? 12.92 * l : 1.055 * Math.pow(l, 1 / 2.4) - 0.055) : l;
+    thumbEncode[i] = Math.round(Math.min(Math.max(s, 0), 1) * 255);
+}
+
+// Devolve um endereço de imagem (data URL) ou null se não der. Chamar uma vez por modelo e guardar o resultado.
+export function renderModelThumbnail(model) {
+    if (!renderer || !model) return null;
+
+    if (!thumbTarget) {
+        thumbTarget = new THREE.WebGLRenderTarget(THUMB_SIZE, THUMB_SIZE);
+        thumbCanvas = document.createElement('canvas');
+        thumbCanvas.width = THUMB_SIZE;
+        thumbCanvas.height = THUMB_SIZE;
+        thumbCtx = thumbCanvas.getContext('2d');
+    }
+
+    // Cópia do modelo, centralizada. O original (usado no jogo) não é mexido
+    const clone = model.clone();
+    thumbHolder.clear();
+    thumbHolder.rotation.set(0, 0, 0);
+    thumbHolder.scale.set(1, 1, 1);
+    clone.position.set(0, 0, 0);
+    thumbHolder.add(clone);
+    thumbHolder.updateMatrixWorld(true);
+
+    thumbBox.setFromObject(thumbHolder);
+    thumbBox.getCenter(thumbCenterVec);
+    thumbBox.getSize(thumbSizeVec);
+    clone.position.sub(thumbCenterVec);
+
+    // Escala pelo raio do volume (serve para qualquer ângulo) e gira para uma vista de três quartos
+    const radius = Math.max(thumbSizeVec.length() / 2, 0.001);
+    thumbHolder.scale.setScalar(THUMB_FILL / radius);
+    thumbHolder.rotation.set(0.35, -0.65, 0);
+
+    const prevTarget = renderer.getRenderTarget();
+    const prevAlpha = renderer.getClearAlpha();
+    renderer.getClearColor(thumbPrevColor);
+
+    try {
+        renderer.setRenderTarget(thumbTarget);
+        renderer.setClearColor(0x000000, 0); // fundo transparente
+        renderer.render(thumbScene, thumbCamera);
+        renderer.readRenderTargetPixels(thumbTarget, 0, 0, THUMB_SIZE, THUMB_SIZE, thumbBuffer);
+    } finally {
+        renderer.setRenderTarget(prevTarget);
+        renderer.setClearColor(thumbPrevColor, prevAlpha);
+        thumbHolder.clear();
+    }
+
+    // A leitura vem de cabeça para baixo: inverte as linhas ao copiar
+    const image = thumbCtx.createImageData(THUMB_SIZE, THUMB_SIZE);
+    const out = image.data;
+    const rowLength = THUMB_SIZE * 4;
+    for (let y = 0; y < THUMB_SIZE; y++) {
+        const src = (THUMB_SIZE - 1 - y) * rowLength;
+        const dst = y * rowLength;
+        for (let x = 0; x < rowLength; x += 4) {
+            out[dst + x]     = thumbEncode[thumbBuffer[src + x]];
+            out[dst + x + 1] = thumbEncode[thumbBuffer[src + x + 1]];
+            out[dst + x + 2] = thumbEncode[thumbBuffer[src + x + 2]];
+            out[dst + x + 3] = thumbBuffer[src + x + 3];
+        }
+    }
+    thumbCtx.putImageData(image, 0, 0);
+    return thumbCanvas.toDataURL('image/png');
+}
