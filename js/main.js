@@ -1,11 +1,11 @@
 import { initEngine, renderEngine, scene, triggerCameraShake,
-    setCameraFlippedState, setCameraPreset, renderer, worldToScreenPercent } from './engine.js';
+    setCameraFlippedState, setCameraPreset, renderer, worldToScreenPercent, renderModelThumbnail } from './engine.js';
 import { createWorld, updateWorld, setBrakingState, currentSpeed,
     setActiveBiome, spawnMacumbaSpecialEvent, resetWorldScenery } from './world.js';
 import { createEntities, movePlayerLeft, movePlayerRight, updateEntities,
     setTrafficSpawning, increaseTrafficLevel, checkCollisions, resetEntities, spawnItem, checkItemCollections,
     setTruckTransitionTurn, spawnGarbageTruck, spawnPoliceCar,
-    spawnAmbulance, NEGATIVE_FOODS, getLaneX } from './entities.js';
+    spawnAmbulance, NEGATIVE_FOODS, getLaneX, getFoodModel } from './entities.js';
 
 // Elementos da Interface (UI)
 const menuBackdrop = document.getElementById('menu-backdrop'); 
@@ -220,6 +220,93 @@ function onIntroTap() {
     if (introPhase === 'blue') openIntro();
     else if (introPhase === 'reveal') finishIntro();
 }
+
+// =========================================
+// GUIA RÁPIDO (botão no menu) e MINIATURAS DOS MODELOS 3D
+// =========================================
+const btnGuide = document.getElementById('btn-guide');
+const guideModal = document.getElementById('guide-modal');
+const btnCloseGuide = document.getElementById('btn-close-guide');
+const btnCloseGuideX = document.getElementById('btn-close-guide-x');
+const guideBtnIcon = document.getElementById('guide-btn-icon');
+const guideScroll = document.getElementById('guide-scroll');
+
+const GUIDE_BUTTON_MODEL = 'apple.glb'; // modelo que aparece na bolinha do botão
+// Prova de cores (temporária): modelos de comidas boas e proibidas
+
+const thumbCache = new Map(); // nome do arquivo -> imagem pronta
+let thumbQueue = [];          // pedidos esperando o modelo carregar
+
+// Pede a miniatura de um modelo. Se já existe, responde na hora; senão, responde quando ficar pronta
+function requestModelThumb(file, onReady) {
+    const cached = thumbCache.get(file);
+    if (cached) {
+        onReady(cached);
+        return;
+    }
+    thumbQueue.push({ file: file, onReady: onReady });
+}
+
+// Gera no máximo UMA miniatura por quadro, só dos modelos que já carregaram
+function processThumbQueue() {
+    if (thumbQueue.length === 0) return;
+
+    const index = thumbQueue.findIndex((entry) => getFoodModel(entry.file));
+    if (index === -1) return;
+
+    const file = thumbQueue[index].file;
+    let url = null;
+    try {
+        url = renderModelThumbnail(getFoodModel(file));
+    } catch (err) {
+        console.error(`Erro ao gerar a miniatura de ${file}:`, err);
+    }
+
+    const waiting = thumbQueue.filter((entry) => entry.file === file);
+    thumbQueue = thumbQueue.filter((entry) => entry.file !== file);
+    if (!url) return; // falhou: sai da fila e não tenta de novo
+
+    thumbCache.set(file, url);
+    waiting.forEach((entry) => entry.onReady(url));
+}
+
+function openGuide() {
+    mainMenu.classList.add('hidden');
+    guideModal.classList.remove('hidden');
+    guideModal.classList.add('flex');
+    guideScroll.scrollTop = 0;
+}
+
+function closeGuide() {
+    guideModal.classList.add('hidden');
+    guideModal.classList.remove('flex');
+    mainMenu.classList.remove('hidden');
+}
+
+btnGuide.addEventListener('click', openGuide);
+btnCloseGuide.addEventListener('click', closeGuide);
+btnCloseGuideX.addEventListener('click', closeGuide);
+
+// Miniatura da bolinha do botão
+requestModelThumb(GUIDE_BUTTON_MODEL, (url) => {
+    guideBtnIcon.src = url;
+    guideBtnIcon.classList.remove('hidden');
+});
+
+// Sanfonas: um clique no cabeçalho abre ou fecha o grupo
+guideScroll.addEventListener('click', (e) => {
+    const btn = e.target.closest('.guide-acc-btn');
+    if (!btn) return;
+    const isOpen = btn.parentElement.classList.toggle('is-open');
+    btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+});
+
+// Cada ícone do guia (img com data-thumb="arquivo.glb") recebe a miniatura quando ela ficar pronta
+guideScroll.querySelectorAll('img[data-thumb]').forEach((img) => {
+    requestModelThumb(img.dataset.thumb, (url) => {
+        img.src = url;
+    });
+});
 
 function setupMenu() { 
     // Abrir o Ranking
@@ -515,6 +602,7 @@ function gameLoop(time) {
         checkItemCollections(handleItemCollection);
     }
 
+    processThumbQueue(); // miniaturas dos modelos (no máximo uma por quadro, antes do desenho principal)
     renderEngine(isPlaying);
 }
 
@@ -747,7 +835,7 @@ const CATEGORY_POPUPS = {
     lanche:     { title: 'Lanche pronto não!', text: 'Fastfoods não fazem parte das doações que coletamos.' },
     aberto:     { title: 'Embalagem aberta!', text: 'Se a embalagem já foi aberta, não dá para garantir que o alimento está seguro.' },
     doce:       { title: 'Doce com recheio!', text: 'Bolos, donuts e doces recheados estragam rápido e não fazem parte da coleta.' },
-    super:      { title: 'Isso nem pensar!', text: 'Bebidas alcoólicas e cogumelos não são coletados.' },
+    super:      { title: 'Isso nem pensar!', text: 'Bebidas alcoólicas não tem valor nutricional e não são coletadas.' },
     easterEgg:  { title: 'Já foi a época!', text: 'Hahaha! O "Mesa São Paulo" entregava isso em 1994, hoje não mais!', special: true }
 };
 
